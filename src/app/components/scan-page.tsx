@@ -32,7 +32,7 @@ function TakePhoto({ onClick }: { onClick: () => void }) {
         <Camera className="w-10 h-10 text-white" />
       </div>
       <span className="text-[#2b2b2b] text-lg font-semibold">
-        Take a photo of parking sign
+        Take a photo of the parking sign
       </span>
     </button>
   );
@@ -50,7 +50,7 @@ function UploadPhoto({ onClick }: { onClick: () => void }) {
         <img src="/icon-uploadphoto.svg" alt="" className="w-10 h-10 brightness-0 invert" aria-hidden />
       </div>
       <span className="text-[#2b2b2b] text-lg font-semibold">
-        Upload a photo
+        Upload a photo of it
       </span>
     </button>
   );
@@ -349,7 +349,6 @@ export function ScanPage() {
   if (!capturedImage) {
     return (
       <div className="p-6 max-w-lg mx-auto space-y-4">
-        <h1 className="text-xl font-semibold">What's your sign (say)?</h1>
         <TakePhoto onClick={() => fileInputRef.current?.click()} />
         <UploadPhoto onClick={() => fileInputRef.current?.click()} />
         <input
