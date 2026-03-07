@@ -49,8 +49,8 @@ export function HomePage() {
   const [showTimerDrawer, setShowTimerDrawer] = useState(false);
   const [meterMinutes, setMeterMinutes] = useState("");
   const [customMinutes, setCustomMinutes] = useState("");
-  const [moveByDateTime, setMoveByDateTime] = useState("");
-  const dateTimeInputRef = useRef<HTMLInputElement>(null);
+  const [moveByDate, setMoveByDate] = useState("");
+  const [moveByTime, setMoveByTime] = useState("");
   const customInputRef = useRef<HTMLInputElement>(null);
   const drawerContentRef = useRef<HTMLDivElement>(null);
   const [drawerHeight, setDrawerHeight] = useState(0);
@@ -76,7 +76,8 @@ export function HomePage() {
     if (loaded && (location.state as { openTimerDrawer?: boolean } | null)?.openTimerDrawer) {
       setMeterMinutes("");
       setCustomMinutes("");
-      setMoveByDateTime("");
+      setMoveByDate("");
+      setMoveByTime("");
       setShowTimerDrawer(true);
       navigate(".", { replace: true, state: {} });
     }
@@ -134,7 +135,8 @@ export function HomePage() {
         setShowTimerDrawer(true);
         setMeterMinutes("");
         setCustomMinutes("");
-        setMoveByDateTime("");
+        setMoveByDate("");
+        setMoveByTime("");
       })
       .catch((err: Error) => {
         setIsLocating(false);
@@ -145,14 +147,16 @@ export function HomePage() {
   const openTimerDrawer = useCallback(() => {
     setMeterMinutes("");
     setCustomMinutes("");
-    setMoveByDateTime("");
+    setMoveByDate("");
+    setMoveByTime("");
     setShowTimerDrawer(true);
   }, []);
 
   const closeTimerDrawer = useCallback(() => {
     setMeterMinutes("");
     setCustomMinutes("");
-    setMoveByDateTime("");
+    setMoveByDate("");
+    setMoveByTime("");
     setShowTimerDrawer(false);
   }, []);
 
@@ -174,8 +178,8 @@ export function HomePage() {
         } else {
           setTimeout(() => setParked({ ...parked, timer }), BOTTOM_DRAWER_CLOSE_MS);
         }
-      } else if (moveByDateTime) {
-        const target = new Date(moveByDateTime);
+      } else if (moveByDate && moveByTime) {
+        const target = new Date(`${moveByDate}T${moveByTime}`);
         if (!Number.isNaN(target.getTime()) && target.getTime() > Date.now()) {
           const timer: ParkingTimerType = {
             type: "moveby",
@@ -192,7 +196,7 @@ export function HomePage() {
       }
     }
     closeTimerDrawer();
-  }, [parked, meterMinutes, customMinutes, moveByDateTime, closeTimerDrawer]);
+  }, [parked, meterMinutes, customMinutes, moveByDate, moveByTime, closeTimerDrawer]);
 
   const handleRemoveTimer = useCallback(() => {
     if (!parked) return;
@@ -397,117 +401,127 @@ export function HomePage() {
               animate={{ height: drawerHeight }}
               exit={{ height: 0 }}
               transition={{ duration: 0.4, ease: "easeInOut" }}
-              className="overflow-hidden relative z-0 -mt-[10px]"
+              className="overflow-hidden relative z-0 -mt-[14px]"
             >
               <div
                 ref={drawerContentRef}
-                className="rounded-b-xl pt-8 px-4 pb-4 flex flex-col gap-4"
+                className="rounded-b-xl pt-[34px] px-4 pb-4 grid grid-cols-12 gap-x-4 gap-y-8"
                 style={{
                   background:
                     "linear-gradient(rgba(0,0,0,0.1) 15%, rgba(0,0,0,0) 41%), #2a9c47",
                 }}
               >
-                <div className="flex gap-4 items-center flex-wrap">
-                  {([15, 30, 60, 120] as const).map((mins) => {
-                    const label = mins >= 60 ? `${mins / 60}` : `${mins}`;
-                    const unit = mins >= 60 ? "h" : "m";
-                    const isSelected = meterMinutes === String(mins);
-                    return (
-                      <button
-                        key={mins}
-                        onClick={() => {
-                          setMeterMinutes(isSelected ? "" : String(mins));
-                          setCustomMinutes("");
-                          setMoveByDateTime("");
-                        }}
-                        className={`h-10 px-3 rounded cursor-pointer transition-colors ${
-                          isSelected ? "bg-[#2b2b2b]" : "bg-[#34c759]"
-                        }`}
-                      >
-                        <span className="text-white text-base font-semibold">
-                          {label}
-                        </span>
-                        <span className="text-white text-base font-normal">
-                          {unit}
-                        </span>
-                      </button>
-                    );
-                  })}
-                  <div className="flex-1 min-w-[80px] h-10 bg-white rounded flex items-center justify-center">
-                    <input
-                      ref={customInputRef}
-                      type="number"
-                      inputMode="numeric"
-                      value={customMinutes}
-                      onChange={(e) => {
-                        setCustomMinutes(e.target.value);
-                        setMeterMinutes("");
-                        setMoveByDateTime("");
-                      }}
-                      placeholder="--"
-                      min={1}
-                      className="w-full h-full px-2 bg-transparent text-center text-[#2b2b2b] font-semibold outline-none placeholder:text-gray-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="relative bg-[#34c759] h-10 px-4 rounded flex items-center overflow-hidden min-w-0">
-                    <span className="text-white font-semibold text-base pointer-events-none truncate">
-                      {moveByDateTime
-                        ? (() => {
-                            const d = new Date(moveByDateTime);
-                            return Number.isNaN(d.getTime())
-                              ? "Pick a time"
-                              : d.toLocaleString([], {
-                                  weekday: "short",
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "numeric",
-                                  minute: "2-digit",
-                                });
-                          })()
-                        : "Pick a time"}
-                    </span>
-                    <input
-                      ref={dateTimeInputRef}
-                      type="datetime-local"
-                      value={moveByDateTime}
-                      min={(() => {
-                        const n = new Date();
-                        const pad = (x: number) => String(x).padStart(2, "0");
-                        return `${n.getFullYear()}-${pad(n.getMonth() + 1)}-${pad(n.getDate())}T${pad(n.getHours())}:${pad(n.getMinutes())}`;
-                      })()}
-                      onChange={(e) => {
-                        setMoveByDateTime(e.target.value);
-                        setMeterMinutes("");
+                {([120, 60, 30, 15] as const).map((mins) => {
+                  const label = mins >= 60 ? `${mins / 60}` : `${mins}`;
+                  const unit = mins >= 60 ? "h" : "m";
+                  const isSelected = meterMinutes === String(mins);
+                  return (
+                    <button
+                      key={mins}
+                      onClick={() => {
+                        setMeterMinutes(isSelected ? "" : String(mins));
                         setCustomMinutes("");
+                        setMoveByDate("");
+                        setMoveByTime("");
                       }}
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                      aria-label="Pick date and time"
-                    />
-                  </div>
-                  {meterMinutes || customMinutes || moveByDateTime ? (
-                    <button
-                      onClick={handleDone}
-                      className="bg-[#1751d2] h-10 px-4 rounded flex gap-2 items-center justify-center cursor-pointer"
+                      className={`col-span-2 h-10 rounded-[4px] flex items-center justify-center cursor-pointer transition-colors ${
+                        isSelected ? "bg-[#2b2b2b]" : "bg-[#34c759]"
+                      }`}
                     >
-                      <Timer className="w-5 h-5 text-white opacity-80 shrink-0" />
                       <span className="text-white text-base font-semibold">
-                        Start
+                        {label}
+                      </span>
+                      <span className="text-white text-base font-normal">
+                        {unit}
                       </span>
                     </button>
-                  ) : (
-                    <button
-                      onClick={closeTimerDrawer}
-                      className="bg-[#2B2B2B] h-10 px-4 rounded flex gap-2 items-center justify-center cursor-pointer"
-                    >
-                      <X className="w-5 h-5 text-white opacity-80 shrink-0" />
-                      <span className="text-white text-base font-semibold">
-                        Close
-                      </span>
-                    </button>
-                  )}
+                  );
+                })}
+                <div className="col-span-4 h-10 bg-white rounded-[4px] flex items-center justify-center px-3">
+                  <input
+                    ref={customInputRef}
+                    type="number"
+                    inputMode="numeric"
+                    value={customMinutes}
+                    onChange={(e) => {
+                      setCustomMinutes(e.target.value);
+                      setMeterMinutes("");
+                      setMoveByDate("");
+                      setMoveByTime("");
+                    }}
+                    placeholder="--"
+                    min={1}
+                    className="w-full h-full bg-transparent text-center text-[#2b2b2b] font-semibold text-base outline-none placeholder:text-[#a1a1a1] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
                 </div>
+                <div className={`col-span-4 relative h-10 rounded-[4px] flex items-center justify-center overflow-hidden ${moveByDate ? "bg-[#2B2B2B]" : "bg-[#34c759]"}`}>
+                  <span className="text-white font-semibold text-base pointer-events-none truncate px-4">
+                    {moveByDate
+                      ? (() => {
+                          const d = new Date(moveByDate + "T12:00:00");
+                          return Number.isNaN(d.getTime()) ? "Date" : d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+                        })()
+                      : "Date"}
+                  </span>
+                  <input
+                    type="date"
+                    value={moveByDate}
+                    min={(() => {
+                      const n = new Date();
+                      const pad = (x: number) => String(x).padStart(2, "0");
+                      return `${n.getFullYear()}-${pad(n.getMonth() + 1)}-${pad(n.getDate())}`;
+                    })()}
+                    onChange={(e) => {
+                      setMoveByDate(e.target.value);
+                      setMeterMinutes("");
+                      setCustomMinutes("");
+                    }}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    aria-label="Pick date"
+                  />
+                </div>
+                <div className="col-span-4 relative bg-[#34c759] h-10 rounded-[4px] flex items-center justify-center overflow-hidden">
+                  <span className="text-white font-semibold text-base pointer-events-none truncate px-4">
+                    {moveByTime ? (() => {
+                      const [h, m] = moveByTime.split(":").map(Number);
+                      const d = new Date();
+                      d.setHours(h, m, 0, 0);
+                      return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+                    })() : "Time"}
+                  </span>
+                  <input
+                    type="time"
+                    value={moveByTime}
+                    onChange={(e) => {
+                      setMoveByTime(e.target.value);
+                      setMeterMinutes("");
+                      setCustomMinutes("");
+                    }}
+                    className="absolute inset-0 cursor-pointer w-full h-full opacity-0"
+                    aria-label="Pick time"
+                  />
+                </div>
+                {meterMinutes || customMinutes || (moveByDate && moveByTime) ? (
+                  <button
+                    onClick={handleDone}
+                    className="col-span-4 bg-[#1751d2] h-10 px-4 rounded-[4px] flex gap-2 items-center justify-center cursor-pointer"
+                  >
+                    <Timer className="w-5 h-5 text-white opacity-80 shrink-0" />
+                    <span className="text-white text-base font-semibold">
+                      Start
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={closeTimerDrawer}
+                    className="col-span-4 bg-[#2B2B2B] h-10 px-4 rounded-[4px] flex gap-2 items-center justify-center cursor-pointer"
+                  >
+                    <X className="w-5 h-5 text-white opacity-80 shrink-0" />
+                    <span className="text-white text-base font-semibold">
+                      Close
+                    </span>
+                  </button>
+                )}
               </div>
             </motion.div>
           )}
