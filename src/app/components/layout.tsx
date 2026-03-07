@@ -28,13 +28,10 @@ function LayoutInner() {
       <header className="flex items-center justify-between px-6 py-4 bg-white shrink-0 border-t border-border">
         <button
           onClick={() => navigate("/")}
-          className="flex items-center gap-2 font-semibold text-2xl"
+          className="flex items-center gap-2"
+          aria-label="Parking Pal"
         >
-          <div className="w-8 h-8 rounded-full bg-[#155DFC] flex items-center justify-center">
-            <span className="text-white font-bold text-sm">P</span>
-          </div>
-          <span className="text-[#0a0a0a]">Parking</span>
-          <span className="text-[#155dfc]">Pal</span>
+          <img src="/pplogo.svg" alt="Parking Pal" className="h-8" />
         </button>
         <div className="flex items-center gap-3">
           <button
