@@ -20,6 +20,42 @@ import { saveParkedLocationAndSync } from "./parking-storage";
 
 type ScanState = { capturedImage?: string; mimeType?: string } | null;
 
+/** Top module: take or choose a photo. */
+function TakePhoto({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full bg-[#d9eaff] rounded-xl p-6 flex flex-col items-start gap-4 cursor-pointer hover:bg-[#c9ddfb] transition-colors"
+    >
+      <div className="bg-[#155dfc] rounded-full w-20 h-20 flex items-center justify-center">
+        <Camera className="w-10 h-10 text-white" />
+      </div>
+      <span className="text-[#2b2b2b] text-lg font-semibold">
+        Take a photo of parking sign
+      </span>
+    </button>
+  );
+}
+
+/** Bottom module: upload a photo. */
+function UploadPhoto({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full bg-[#d9eaff] rounded-xl p-6 flex flex-col items-start gap-4 cursor-pointer hover:bg-[#c9ddfb] transition-colors"
+    >
+      <div className="bg-[#155dfc] rounded-full w-20 h-20 flex items-center justify-center">
+        <img src="/icon-uploadphoto.svg" alt="" className="w-10 h-10 brightness-0 invert" aria-hidden />
+      </div>
+      <span className="text-[#2b2b2b] text-lg font-semibold">
+        Upload a photo
+      </span>
+    </button>
+  );
+}
+
 /** Format 24h "HH:MM" to friendly time (e.g. "2:30 PM"). */
 function formatTime24(hhmm: string): string {
   const [h, m] = hhmm.split(":").map(Number);
@@ -313,22 +349,9 @@ export function ScanPage() {
   if (!capturedImage) {
     return (
       <div className="p-6 max-w-lg mx-auto space-y-4">
-        <h1 className="text-xl font-semibold">Can I park here?</h1>
-        <p className="text-muted-foreground text-sm">
-          Take or choose a photo of the parking sign or meter to check the rules.
-        </p>
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="w-full bg-[#d9eaff] rounded-xl p-6 flex flex-col items-center gap-4 cursor-pointer hover:bg-[#c9ddfb] transition-colors"
-        >
-          <div className="bg-[#155dfc] rounded-full w-20 h-20 flex items-center justify-center">
-            <Camera className="w-10 h-10 text-white" />
-          </div>
-          <span className="text-[#2b2b2b] text-lg font-semibold">
-            Take or choose photo
-          </span>
-        </button>
+        <h1 className="text-xl font-semibold">What's your sign (say)?</h1>
+        <TakePhoto onClick={() => fileInputRef.current?.click()} />
+        <UploadPhoto onClick={() => fileInputRef.current?.click()} />
         <input
           ref={fileInputRef}
           type="file"
@@ -350,7 +373,7 @@ export function ScanPage() {
 
   return (
     <div className="p-4 max-w-[480px] mx-auto flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Can I park here?</h1>
+      <h1 className="text-xl font-semibold">What's your sign (say)?</h1>
       {/* Image container — Figma: rounded-[14px], optional retake overlay */}
       <div className="relative h-[288px] w-full overflow-hidden rounded-[14px] bg-[#ececf0]">
         <img
