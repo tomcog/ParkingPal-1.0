@@ -84,7 +84,6 @@ function ParkingResultView({
   const [restrictionDismissed, setRestrictionDismissed] = useState(false);
   const isYes = data.canPark === "yes";
   const isNo = data.canPark === "no";
-  const isConditional = data.canPark === "conditional";
   const showUpcomingRestriction =
     isYes && data.nextRestriction && !restrictionDismissed;
   const mainRules = data.restrictions.length > 0 ? data.restrictions : data.details;
@@ -391,7 +390,7 @@ export function ScanPage() {
       </div>
 
       {noKey && (
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="rounded-xl border-amber-200 bg-amber-50">
           <CardContent className="p-4">
             <p className="text-amber-800 text-sm">
               Add <code className="bg-amber-100 px-1 rounded">VITE_GEMINI_API_KEY</code> to your{" "}
@@ -402,7 +401,7 @@ export function ScanPage() {
       )}
 
       {analyzing && (
-        <Card>
+        <Card className="rounded-xl">
           <CardContent className="p-6 flex flex-col items-center gap-3">
             <Loader2 className="w-8 h-8 text-[#155dfc] animate-spin" />
             <p className="text-muted-foreground text-sm">Reading parking rules…</p>
@@ -422,7 +421,7 @@ export function ScanPage() {
       )}
 
       {!analyzing && result && "text" in result && (
-        <Card className="border-gray-200 bg-gray-50/50">
+        <Card className="rounded-xl border-gray-200 bg-gray-50/50">
           <CardContent className="p-4">
             <p className="text-sm font-medium text-gray-900 mb-1">Parking rules</p>
             <p className="text-gray-700 text-sm whitespace-pre-wrap">{result.text}</p>
@@ -431,7 +430,7 @@ export function ScanPage() {
       )}
 
       {!analyzing && result && "error" in result && (
-        <Card className="border-red-200 bg-red-50">
+        <Card className="rounded-xl border-red-200 bg-red-50">
           <CardContent className="p-4">
             <p className="text-red-800 text-sm">{result.error}</p>
           </CardContent>

@@ -3,9 +3,11 @@ import type { ReactNode } from "react";
 interface ButtonStandardProps {
   children: ReactNode;
   onClick?: () => void;
-  icon?: ReactNode;
+  /** Pass null to hide the icon. */
+  icon?: ReactNode | null;
   disabled?: boolean;
   className?: string;
+  type?: "button" | "submit" | "reset";
 }
 
 function DirectionsIcon() {
@@ -23,19 +25,38 @@ export function ButtonStandard({
   icon,
   disabled = false,
   className = "",
+  type = "button",
 }: ButtonStandardProps) {
   return (
     <button
+      type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`group relative w-full h-[54px] overflow-hidden rounded-[4px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+      className={`group relative w-full h-[54px] overflow-hidden rounded-[4px] cursor-pointer disabled:cursor-not-allowed ${className}`}
     >
-      <div className="absolute left-0 right-0 h-[54px] rounded-[4px] flex items-center justify-center gap-2 pb-2 pt-1 px-8 bg-[#155dfc] group-hover:bg-[#0f46bf] group-active:bg-[#0f46bf] top-0 group-active:top-[6px] transition-top">
-        <span className="shrink-0 flex items-center justify-center w-5 h-5 text-white">
-          {icon ?? <DirectionsIcon />}
+      {/* Default/enabled: 3D blue with hover and pressed state. Disabled: flat light blue per Figma (Style=3D, State=Disabled). */}
+      <div
+        className={
+          disabled
+            ? "absolute left-0 right-0 top-0 flex h-[54px] items-center justify-center gap-2 rounded-[4px] bg-[#ccdcff] pb-2 pt-1 px-8"
+            : "absolute left-0 right-0 h-[54px] rounded-[4px] flex items-center justify-center gap-2 pb-2 pt-1 px-8 bg-[#155dfc] group-hover:bg-[#0f46bf] group-active:bg-[#0f46bf] top-0 group-active:top-[6px] transition-top"
+        }
+      >
+        {icon !== null && (
+          <span
+            className={`relative z-10 shrink-0 flex items-center justify-center w-5 h-5 ${disabled ? "text-[#ebf4ff]" : "text-white"}`}
+          >
+            {icon ?? <DirectionsIcon />}
+          </span>
+        )}
+        <span
+          className={`relative z-10 font-semibold text-base ${disabled ? "text-[#ebf4ff]" : "text-white"}`}
+        >
+          {children}
         </span>
-        <span className="font-semibold text-base text-white">{children}</span>
-        <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_-6px_0px_0px_#042f8c] group-active:opacity-0" />
+        {!disabled && (
+          <div className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-[inset_0px_-6px_0px_0px_#042f8c] group-active:opacity-0" />
+        )}
       </div>
     </button>
   );

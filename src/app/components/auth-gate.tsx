@@ -1,6 +1,8 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { useAuth } from "../lib/auth-context";
 import { Card, CardContent } from "./ui/card";
+import { ButtonStandard } from "./button-standard";
+import { IconSignIn } from "./icon-signin";
 import { Loader2 } from "lucide-react";
 
 const SKIP_SIGNIN_KEY = "parkingpal_skip_signin";
@@ -91,7 +93,7 @@ function SignInScreen({
             </p>
           </div>
 
-          <Card className="border-[#e5e7eb] bg-white shadow-sm">
+          <Card className="rounded-xl border-[#e5e7eb] bg-white shadow-sm">
             <CardContent className="p-5 space-y-4">
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
@@ -129,16 +131,19 @@ function SignInScreen({
                     {authError}
                   </p>
                 )}
-                <button
+                <ButtonStandard
                   type="submit"
                   disabled={authLoading}
-                  className="group relative flex h-[54px] w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-[4px] bg-[#155dfc] pb-2 pt-1 font-semibold text-base text-white shadow-[inset_0px_-6px_0px_0px_#042f8c] hover:bg-[#0f46bf] active:bg-[#0f46bf] disabled:cursor-not-allowed disabled:opacity-50"
+                  icon={
+                    authLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-white" />
+                    ) : (
+                      <IconSignIn className="w-5 h-5 text-white shrink-0" />
+                    )
+                  }
                 >
-                  {authLoading ? (
-                    <Loader2 className="h-5 w-5 animate-spin text-white" />
-                  ) : null}
-                  <span>{authLoading ? "Signing in…" : isSignUp ? "Sign up" : "Sign in"}</span>
-                </button>
+                  {authLoading ? "Signing in…" : isSignUp ? "Sign up" : "Sign in"}
+                </ButtonStandard>
                 <div className="flex justify-center">
                   <button
                     type="button"

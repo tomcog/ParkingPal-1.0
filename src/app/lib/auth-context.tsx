@@ -24,6 +24,7 @@ type AuthContextValue = {
   signInWithPassword: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
   isConfigured: boolean;
 };
 
@@ -99,6 +100,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (supabase) await supabase.auth.signOut();
   }, []);
 
+  const updatePassword = useCallback(async (newPassword: string) => {
+    if (!supabase) return { error: new Error("Supabase not configured") };
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    return { error: error ?? null };
+  }, []);
+
   const value: AuthContextValue = {
     user,
     session,
@@ -106,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signInWithPassword,
     signUp,
     signOut,
+    updatePassword,
     isConfigured: isSupabaseConfigured(),
   };
 

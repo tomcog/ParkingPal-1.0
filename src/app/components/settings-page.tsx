@@ -1,17 +1,28 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
+import { ArrowLeft } from "lucide-react";
 import { useAuth } from "../lib/auth-context";
 import { Card, CardContent } from "./ui/card";
+import { ButtonStandard } from "./button-standard";
+import { IconSignIn } from "./icon-signin";
 import { loadPermits, savePermitsAndSync } from "./permits-storage";
 
 const MAX_PERMITS = 3;
 
 export function SettingsPage() {
-  const { user, loading, signInWithPassword, signUp, signOut, isConfigured } = useAuth();
+  const navigate = useNavigate();
+  const { user, loading, signInWithPassword, signUp, signOut, updatePassword, isConfigured } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   const [permits, setPermits] = useState<string[]>(() => {
     const loaded = loadPermits();
@@ -55,76 +66,143 @@ export function SettingsPage() {
     await signOut();
   };
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(false);
+    if (newPassword.length < 6) {
+      setPasswordError("Password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Passwords do not match.");
+      return;
+    }
+    setPasswordLoading(true);
+    const { error } = await updatePassword(newPassword);
+    setPasswordLoading(false);
+    if (error) {
+      setPasswordError(error.message);
+    } else {
+      setPasswordSuccess(true);
+      setNewPassword("");
+      setConfirmPassword("");
+    }
+  };
+
   return (
     <div className="p-6 max-w-lg mx-auto space-y-6">
-      <h1 className="text-xl font-semibold">Settings</h1>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="flex items-center justify-center size-10 rounded-[4px] text-[#155dfc] hover:bg-[#155dfc]/10 transition-colors"
+          aria-label="Back"
+        >
+          <ArrowLeft className="w-5 h-5" strokeWidth={2} />
+        </button>
+        <h1 className="text-xl font-semibold">Settings</h1>
+      </div>
 
       {isConfigured && (
-        <Card className="border-[#e5e7eb]">
-          <CardContent className="p-4 space-y-4">
-            <h2 className="font-medium text-[#0a0a0a]">Account</h2>
-            {loading ? (
-              <p className="text-sm text-[#717182]">Loading…</p>
-            ) : user ? (
-              <div className="space-y-3">
-                <p className="text-sm text-[#717182] break-all">
-                  Signed in as <strong className="text-[#0a0a0a]">{user.email}</strong>
-                </p>
-                <p className="text-xs text-[#717182]">
-                  Your parking status syncs across devices when you’re signed in.
-                </p>
-                <button
-                  type="button"
-                  onClick={handleSignOut}
-                  className="text-sm font-medium text-[#155dfc] hover:underline"
-                >
-                  Sign out
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="rounded-[4px] border border-[#e5e7eb] bg-card text-card-foreground flex flex-col gap-6 p-4">
+          <h2 className="font-medium text-[#0a0a0a]">Account</h2>
+          {loading ? (
+            <p className="text-sm text-[#717182]">Loading…</p>
+          ) : user ? (
+            <div className="space-y-4">
+              <p className="text-sm text-[#717182] break-all">
+                Signed in as <strong className="text-[#0a0a0a]">{user.email}</strong>
+              </p>
+
+              <form onSubmit={handleChangePassword} className="space-y-3 border-t border-[#e5e7eb] pt-4">
+                <h3 className="text-sm font-medium text-[#0a0a0a]">Change password</h3>
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Email"
-                  required
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="New password"
+                  minLength={6}
+                  autoComplete="new-password"
                   className="w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm text-[#0a0a0a] placeholder:text-[#9ca3af]"
                 />
                 <input
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
-                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  minLength={6}
+                  autoComplete="new-password"
                   className="w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm text-[#0a0a0a] placeholder:text-[#9ca3af]"
                 />
-                {authError && (
-                  <p className="text-sm text-red-600">{authError}</p>
+                {passwordError && (
+                  <p className="text-sm text-red-600">{passwordError}</p>
                 )}
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={authLoading}
-                    className="rounded-lg bg-[#155dfc] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-                  >
-                    {authLoading ? "…" : isSignUp ? "Sign up" : "Sign in"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsSignUp((s) => !s)}
-                    className="text-sm text-[#717182] hover:text-[#155dfc]"
-                  >
-                    {isSignUp ? "Already have an account? Sign in" : "Need an account? Sign up"}
-                  </button>
-                </div>
-                <p className="text-xs text-[#717182]">
-                  Sign in to sync your parked car and timer across devices.
-                </p>
+                {passwordSuccess && (
+                  <p className="text-sm text-[#16a34a]">Password updated.</p>
+                )}
+                <ButtonStandard
+                  type="submit"
+                  icon={null}
+                  disabled={passwordLoading || !newPassword || !confirmPassword}
+                >
+                  {passwordLoading ? "Updating…" : "Update password"}
+                </ButtonStandard>
               </form>
-            )}
-          </CardContent>
-        </Card>
+
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="text-sm font-medium text-[#155dfc] hover:underline"
+              >
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                required
+                className="w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm text-[#0a0a0a] placeholder:text-[#9ca3af]"
+              />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                required
+                className="w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm text-[#0a0a0a] placeholder:text-[#9ca3af]"
+              />
+              {authError && (
+                <p className="text-sm text-red-600">{authError}</p>
+              )}
+              <div className="flex gap-2">
+                <ButtonStandard
+                  type="submit"
+                  icon={<IconSignIn className="w-5 h-5 text-white shrink-0" />}
+                  disabled={authLoading}
+                >
+                  {authLoading ? "…" : isSignUp ? "Sign up" : "Sign in"}
+                </ButtonStandard>
+                <button
+                  type="button"
+                  onClick={() => setIsSignUp((s) => !s)}
+                  className="text-sm text-[#717182] hover:opacity-90"
+                >
+                  {isSignUp ? (
+                    <>Already have an account? <span className="text-[#155dfc]">Sign in</span></>
+                  ) : (
+                    <>No account? <span className="text-[#155dfc]">Sign up</span></>
+                  )}
+                </button>
+              </div>
+             
+            </form>
+          )}
+        </div>
       )}
 
       {!isConfigured && (
@@ -135,17 +213,12 @@ export function SettingsPage() {
         </p>
       )}
 
-      <Card className="border-[#e5e7eb]">
+      <Card className="rounded-xl border-[#e5e7eb]">
         <CardContent className="p-4 space-y-3">
           <h2 className="font-medium text-[#0a0a0a]">Parking permits</h2>
           <p className="text-xs text-[#717182]">
-            Add up to 3 permit names or numbers (e.g. 1E, Zone A). When you scan a sign, we’ll check if a permit is required and if you have one. Permits sync across devices when you’re signed in.
+            Add up to 3 permit names or numbers. Permits sync across devices when you’re signed in.
           </p>
-          {isConfigured && user && (
-            <p className="text-xs text-[#717182]">
-              To sync permits, run <code className="bg-[#f3f4f6] px-1 rounded">supabase-schema.sql</code> in your Supabase project’s SQL Editor (Dashboard → SQL Editor) if you haven’t already.
-            </p>
-          )}
           {permits.map((value, i) => (
             <input
               key={i}
@@ -161,9 +234,6 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      <p className="text-muted-foreground text-sm">
-        App preferences and dev mode.
-      </p>
     </div>
   );
 }

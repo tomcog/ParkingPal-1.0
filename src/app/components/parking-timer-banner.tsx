@@ -39,7 +39,7 @@ export function ParkingTimerBanner() {
   if (remaining.expired) {
     return (
       <button onClick={() => navigate("/")} className="w-full text-left">
-        <Card className="border-red-300 bg-red-50">
+        <Card className="rounded-xl border-red-300 bg-red-50">
           <CardContent className="p-3 flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
             <div className="flex-1 min-w-0">
@@ -57,8 +57,8 @@ export function ParkingTimerBanner() {
       <Card
         className={
           isUrgent
-            ? "border-amber-300 bg-amber-50"
-            : "border-blue-200 bg-blue-50"
+            ? "rounded-xl border-amber-300 bg-amber-50"
+            : "rounded-xl border-blue-200 bg-blue-50"
         }
       >
         <CardContent className="p-3 flex items-center gap-3">

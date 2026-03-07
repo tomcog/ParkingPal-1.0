@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useNavigate, useLocation } from "react-router";
 import { MapPin, Camera, Loader2, Timer, X } from "lucide-react";
@@ -50,6 +50,9 @@ export function HomePage() {
   const [meterMoveByTime, setMeterMoveByTime] = useState("");
   const timeInputRef = useRef<HTMLInputElement>(null);
   const customInputRef = useRef<HTMLInputElement>(null);
+  const drawerContentRef = useRef<HTMLDivElement>(null);
+  const [drawerHeight, setDrawerHeight] = useState(0);
+  const [timerBarExiting, setTimerBarExiting] = useState(false);
   const [staticMapUrl, setStaticMapUrl] = useState<string | null>(null);
 
   const goToScan = useCallback(() => {
@@ -60,6 +63,9 @@ export function HomePage() {
     const loaded = loadParkedLocation();
     setParked(loaded);
     if (loaded && (location.state as { openTimerDrawer?: boolean } | null)?.openTimerDrawer) {
+      setMeterMinutes("");
+      setCustomMinutes("");
+      setMeterMoveByTime("");
       setShowTimerDrawer(true);
       navigate(".", { replace: true, state: {} });
     }
@@ -91,6 +97,11 @@ export function HomePage() {
     return () => clearInterval(id);
   }, [parked]);
 
+  useLayoutEffect(() => {
+    if (!showTimerDrawer || !drawerContentRef.current) return;
+    setDrawerHeight(drawerContentRef.current.scrollHeight);
+  }, [showTimerDrawer]);
+
   useEffect(() => {
     if (parked?.timer) {
       const remaining = getTimeRemaining(parked.timer.endTime);
@@ -120,6 +131,20 @@ export function HomePage() {
       });
   }, []);
 
+  const openTimerDrawer = useCallback(() => {
+    setMeterMinutes("");
+    setCustomMinutes("");
+    setMeterMoveByTime("");
+    setShowTimerDrawer(true);
+  }, []);
+
+  const closeTimerDrawer = useCallback(() => {
+    setMeterMinutes("");
+    setCustomMinutes("");
+    setMeterMoveByTime("");
+    setShowTimerDrawer(false);
+  }, []);
+
   const handleDone = useCallback(() => {
     if (parked) {
       const mins = parseInt(meterMinutes || customMinutes, 10);
@@ -145,8 +170,8 @@ export function HomePage() {
         setParked({ ...parked, timer });
       }
     }
-    setShowTimerDrawer(false);
-  }, [parked, meterMinutes, customMinutes, meterMoveByTime]);
+    closeTimerDrawer();
+  }, [parked, meterMinutes, customMinutes, meterMoveByTime, closeTimerDrawer]);
 
   const handleRemoveTimer = useCallback(() => {
     if (!parked) return;
@@ -169,13 +194,6 @@ export function HomePage() {
     setParked(null);
     setError(null);
     setShowTimerDrawer(false);
-  }, []);
-
-  const openTimerDrawer = useCallback(() => {
-    setMeterMinutes("");
-    setCustomMinutes("");
-    setMeterMoveByTime("");
-    setShowTimerDrawer(true);
   }, []);
 
   if (!parked && !isLocating) {
@@ -205,7 +223,7 @@ export function HomePage() {
           </span>
         </button>
         {error && (
-          <Card className="border-red-200 bg-red-50">
+          <Card className="rounded-xl border-red-200 bg-red-50">
             <CardContent className="p-4">
               <p className="text-red-800 text-sm">
                 This app is designed for a mobile phone.{" "}
@@ -232,7 +250,7 @@ export function HomePage() {
   if (isLocating) {
     return (
       <div className="p-6 max-w-lg mx-auto space-y-6">
-        <Card>
+        <Card className="rounded-xl">
           <CardContent className="p-8 flex flex-col items-center gap-3">
             <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
             <p className="text-muted-foreground text-sm">Getting your location...</p>
@@ -256,49 +274,76 @@ export function HomePage() {
   return (
     <div className="p-6 max-w-lg mx-auto space-y-6">
       <div className="relative">
-        {hasTimer && timerRemaining && !showTimerDrawer && (
-          <div
-            className="h-14 rounded-t-xl flex items-center px-6 pb-2"
-            style={{
-              background: isExpired || isUrgent
-                ? "linear-gradient(0deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0) 50%), #c42a1b"
-                : "linear-gradient(0deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0) 50%), #2a9c47",
+        {((hasTimer && timerRemaining) || timerBarExiting) && (
+          <motion.div
+            initial={{ height: 0 }}
+            animate={{ height: timerBarExiting ? 0 : 56 }}
+            transition={{ duration: 0.4, ease: "easeInOut" }}
+            className="overflow-hidden"
+            onAnimationComplete={() => {
+              if (timerBarExiting) {
+                handleRemoveTimer();
+                setTimerBarExiting(false);
+              }
             }}
           >
-            <div className="flex items-center justify-between w-full">
-              <button onClick={handleRemoveTimer} className="p-1" aria-label="Remove timer">
-                <Timer className="w-5 h-5 text-white/80" />
-              </button>
-              {isExpired ? (
-                <p className="text-white text-xl font-semibold">Time's up!</p>
-              ) : (
-                <p className="text-white text-xl font-semibold">
-                  {timerRemaining.hours > 0 && `${timerRemaining.hours}h `}
-                  {String(timerRemaining.minutes).padStart(2, "0")}m{" "}
-                  {String(timerRemaining.seconds).padStart(2, "0")}s
-                </p>
-              )}
+            <div
+              className="h-14 rounded-t-[12px] flex items-center px-6 pb-3"
+              style={{
+                background: isExpired || isUrgent
+                  ? "linear-gradient(0deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0) 50%), #c42a1b"
+                  : "linear-gradient(0deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0) 50%), #2a9c47",
+              }}
+            >
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openTimerDrawer();
-                }}
-                className="bg-black/25 rounded size-8 flex items-center justify-center"
+                onClick={() => setTimerBarExiting(true)}
+                className="p-1 opacity-60 shrink-0 mr-auto"
+                aria-label="Remove timer"
               >
-                <Timer className="w-4 h-4 text-white" />
+                <X className="w-5 h-5 text-black" />
               </button>
+              <div className="flex items-center gap-2 shrink-0">
+                {isExpired ? (
+                  <p className="text-white text-2xl font-semibold leading-[30px] tracking-[0.3828px]">
+                    Time's up!
+                  </p>
+                ) : (
+                  <p className="text-white text-2xl leading-[30px] tracking-[0.3828px]">
+                    {timerRemaining?.hours ? (
+                      <>
+                        <span className="font-semibold">{String(timerRemaining.hours).padStart(2, "0")}</span>
+                        <span className="font-light">h </span>
+                      </>
+                    ) : null}
+                    <span className="font-semibold">{String(timerRemaining?.minutes ?? 0).padStart(2, "0")}</span>
+                    <span className="font-light">m </span>
+                    <span className="font-semibold">{String(timerRemaining?.seconds ?? 0).padStart(2, "0")}</span>
+                    <span className="font-light">s</span>
+                  </p>
+                )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    showTimerDrawer ? closeTimerDrawer() : openTimerDrawer();
+                  }}
+                  className="bg-black/30 rounded-[4px] size-8 flex items-center justify-center shrink-0"
+                  aria-label={showTimerDrawer ? "Close timer" : "Open timer"}
+                >
+                  <Timer className="w-5 h-5 text-white opacity-80" />
+                </button>
+              </div>
             </div>
-          </div>
+          </motion.div>
         )}
 
-        <div className="relative z-10 bg-[#34c759] rounded-xl flex flex-col gap-4 p-6 -mt-1.5">
-          <div className="w-20 h-20 rounded-full bg-[#155DFC] flex items-center justify-center">
-            <span className="text-white font-bold text-3xl">P</span>
+        <div className="relative z-10 bg-[#34c759] rounded-[12px] flex flex-col gap-4 p-6 -mt-[10px]">
+          <div className="w-20 h-20 shrink-0 rounded-full bg-[#155DFC] flex items-center justify-center">
+            <img src="/the-p.svg" alt="" className="h-10 w-auto shrink-0" aria-hidden />
           </div>
-          <div className="flex items-center justify-between w-full">
-            <div className="flex gap-1 items-center text-white text-xl">
+          <div className="flex items-center justify-between w-full gap-2">
+            <div className="flex gap-1 items-center text-white text-[20px] leading-[30px] tracking-[-0.35px] min-w-0">
               <span className="font-light">Parked</span>
-              <span className="font-bold">
+              <span className="font-bold whitespace-nowrap">
                 {new Date(parked!.timestamp).toLocaleTimeString([], {
                   hour: "numeric",
                   minute: "2-digit",
@@ -306,20 +351,17 @@ export function HomePage() {
               </span>
             </div>
             {!hasTimer && (
-              <div className="flex gap-2 items-center">
-                <span className="text-white text-base">Timer</span>
+              <div className="flex gap-2 items-center shrink-0">
+                <span className="text-white text-base leading-[30px]">Timer</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setShowTimerDrawer((s) => !s);
+                    showTimerDrawer ? closeTimerDrawer() : openTimerDrawer();
                   }}
-                  className="bg-black/25 rounded size-8 flex items-center justify-center"
+                  className="bg-black/25 rounded-[4px] size-8 flex items-center justify-center flex-shrink-0"
+                  aria-label={showTimerDrawer ? "Close timer" : "Set timer"}
                 >
-                  {showTimerDrawer ? (
-                    <X className="w-4 h-4 text-white" />
-                  ) : (
-                    <Timer className="w-5 h-5 text-white" />
-                  )}
+                  <Timer className="w-5 h-5 text-white opacity-80" />
                 </button>
               </div>
             )}
@@ -330,11 +372,13 @@ export function HomePage() {
           {showTimerDrawer && (
             <motion.div
               initial={{ height: 0 }}
-              animate={{ height: "auto" }}
+              animate={{ height: drawerHeight }}
               exit={{ height: 0 }}
-              className="overflow-hidden relative z-0 -mt-1.5"
+              transition={{ duration: 0.4, ease: "easeInOut" }}
+              className="overflow-hidden relative z-0 -mt-[10px]"
             >
               <div
+                ref={drawerContentRef}
                 className="rounded-b-xl pt-8 px-4 pb-4 flex flex-col gap-4"
                 style={{
                   background:
@@ -413,14 +457,27 @@ export function HomePage() {
                       className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                     />
                   </div>
-                  <button
-                    onClick={handleDone}
-                    className="bg-[#1751d2] h-10 px-4 rounded flex gap-2 items-center cursor-pointer"
-                  >
-                    <span className="text-white text-base font-semibold">
-                      Done
-                    </span>
-                  </button>
+                  {meterMinutes || customMinutes || meterMoveByTime ? (
+                    <button
+                      onClick={handleDone}
+                      className="bg-[#1751d2] h-10 px-4 rounded flex gap-2 items-center justify-center cursor-pointer"
+                    >
+                      <Timer className="w-5 h-5 text-white opacity-80 shrink-0" />
+                      <span className="text-white text-base font-semibold">
+                        Start
+                      </span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={closeTimerDrawer}
+                      className="bg-[#2B2B2B] h-10 px-4 rounded flex gap-2 items-center justify-center cursor-pointer"
+                    >
+                      <X className="w-5 h-5 text-white opacity-80 shrink-0" />
+                      <span className="text-white text-base font-semibold">
+                        Close
+                      </span>
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>
