@@ -95,7 +95,7 @@ export function SettingsPage() {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/")}
           className="flex items-center justify-center size-10 rounded-[4px] text-[#155dfc] hover:bg-[#155dfc]/10 transition-colors"
           aria-label="Back"
         >

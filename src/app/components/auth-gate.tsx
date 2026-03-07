@@ -23,7 +23,7 @@ function setSkipSignInStorage() {
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const { user, loading, signInWithPassword, signUp, isConfigured } = useAuth();
-  const [skipSignIn, setSkipSignIn] = useState(false);
+  const [skipSignIn, setSkipSignIn] = useState(getSkipSignIn);
 
   useEffect(() => {
     setSkipSignIn(getSkipSignIn());
@@ -36,6 +36,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const handleUseWithoutSignIn = () => {
     setSkipSignInStorage();
     setSkipSignIn(true);
+    window.location.replace("/");
   };
 
   if (showLoading) {

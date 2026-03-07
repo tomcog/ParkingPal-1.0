@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useNavigate, useLocation } from "react-router";
 import { MapPin, Camera, Loader2, Timer, X } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
+import { CardBlue } from "./card-blue";
 import { ParkingTimerBanner } from "./parking-timer-banner";
 import {
   loadParkedLocation,
@@ -18,6 +19,7 @@ import { SlideButton } from "./slide-button";
 import { playCelebration } from "./sounds";
 import { useAlertBg } from "./alert-bg-context";
 import { getGoogleMapsKey, getStaticMapUrl } from "./google-maps-service";
+import { compressImage } from "./compress-image";
 import slidingArrowIcon from "../../icon-slidingarrow.svg";
 
 function IconPark({ className }: { className?: string }) {
@@ -54,10 +56,19 @@ export function HomePage() {
   const [drawerHeight, setDrawerHeight] = useState(0);
   const [timerBarExiting, setTimerBarExiting] = useState(false);
   const [staticMapUrl, setStaticMapUrl] = useState<string | null>(null);
+  const scanFileInputRef = useRef<HTMLInputElement>(null);
 
-  const goToScan = useCallback(() => {
-    navigate("/scan");
-  }, [navigate]);
+  const handleScanFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      compressImage(file).then((dataUrl) => {
+        navigate("/scan", { state: { capturedImage: dataUrl, mimeType: file.type } });
+      });
+      if (scanFileInputRef.current) scanFileInputRef.current.value = "";
+    },
+    [navigate]
+  );
 
   useEffect(() => {
     const loaded = loadParkedLocation();
@@ -145,8 +156,11 @@ export function HomePage() {
     setShowTimerDrawer(false);
   }, []);
 
+  const BOTTOM_DRAWER_CLOSE_MS = 400;
+
   const handleDone = useCallback(() => {
     if (parked) {
+      const hadTimer = !!parked.timer;
       const mins = parseInt(meterMinutes || customMinutes, 10);
       if (mins && mins > 0) {
         const timer: ParkingTimerType = {
@@ -155,7 +169,11 @@ export function HomePage() {
           endTime: Date.now() + mins * 60000,
         };
         saveParkedLocationAndSync({ ...parked, timer });
-        setParked({ ...parked, timer });
+        if (hadTimer) {
+          setParked({ ...parked, timer });
+        } else {
+          setTimeout(() => setParked({ ...parked, timer }), BOTTOM_DRAWER_CLOSE_MS);
+        }
       } else if (meterMoveByTime) {
         const [hh, mm] = meterMoveByTime.split(":").map(Number);
         const target = new Date();
@@ -167,7 +185,11 @@ export function HomePage() {
           endTime: target.getTime(),
         };
         saveParkedLocationAndSync({ ...parked, timer });
-        setParked({ ...parked, timer });
+        if (hadTimer) {
+          setParked({ ...parked, timer });
+        } else {
+          setTimeout(() => setParked({ ...parked, timer }), BOTTOM_DRAWER_CLOSE_MS);
+        }
       }
     }
     closeTimerDrawer();
@@ -200,28 +222,24 @@ export function HomePage() {
     return (
       <div className="max-w-lg mx-auto space-y-6 p-6">
         <ParkingTimerBanner />
-        <button
-          onClick={handleParkTap}
-          className="w-full bg-[#d9eaff] rounded-xl p-6 flex flex-col items-start gap-6 cursor-pointer hover:bg-[#c9ddfb] transition-colors"
+        <CardBlue onClick={handleParkTap} icon={<MapPin className="w-10 h-10 text-white" />}>
+          I just parked my car.
+        </CardBlue>
+        <CardBlue
+          onClick={() => scanFileInputRef.current?.click()}
+          icon={<Camera className="w-10 h-10 text-white" />}
         >
-          <div className="bg-[#155dfc] rounded-full w-20 h-20 flex items-center justify-center">
-            <MapPin className="w-10 h-10 text-white" />
-          </div>
-          <span className="text-[#2b2b2b] text-2xl font-semibold leading-8">
-            I just parked my car.
-          </span>
-        </button>
-        <button
-          onClick={goToScan}
-          className="w-full bg-[#d9eaff] rounded-xl p-6 flex flex-col items-start gap-6 cursor-pointer hover:bg-[#c9ddfb] transition-colors"
-        >
-          <div className="bg-[#155dfc] rounded-full w-20 h-20 flex items-center justify-center">
-            <Camera className="w-10 h-10 text-white" />
-          </div>
-          <span className="text-[#2b2b2b] text-2xl font-semibold leading-8">
-            Can I park here?
-          </span>
-        </button>
+          Can I park here?
+        </CardBlue>
+        <input
+          ref={scanFileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleScanFileChange}
+          className="hidden"
+          aria-hidden
+        />
         {error && (
           <Card className="rounded-xl border-red-200 bg-red-50">
             <CardContent className="p-4">

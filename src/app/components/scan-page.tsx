@@ -11,6 +11,7 @@ import {
   Ban,
 } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
+import { CardBlue } from "./card-blue";
 import { ButtonStandard } from "./button-standard";
 import { analyzeParkingSign, getGeminiKey, type ParkingAnalysis } from "./gemini-service";
 import { loadPermits } from "./permits-storage";
@@ -20,41 +21,6 @@ import { saveParkedLocationAndSync } from "./parking-storage";
 
 type ScanState = { capturedImage?: string; mimeType?: string } | null;
 
-/** Top module: take or choose a photo. */
-function TakePhoto({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full bg-[#d9eaff] rounded-xl p-6 flex flex-col items-start gap-4 cursor-pointer hover:bg-[#c9ddfb] transition-colors"
-    >
-      <div className="bg-[#155dfc] rounded-full w-20 h-20 flex items-center justify-center">
-        <Camera className="w-10 h-10 text-white" />
-      </div>
-      <span className="text-[#2b2b2b] text-lg font-semibold">
-        Take a photo of the parking sign
-      </span>
-    </button>
-  );
-}
-
-/** Bottom module: upload a photo. */
-function UploadPhoto({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full bg-[#d9eaff] rounded-xl p-6 flex flex-col items-start gap-4 cursor-pointer hover:bg-[#c9ddfb] transition-colors"
-    >
-      <div className="bg-[#155dfc] rounded-full w-20 h-20 flex items-center justify-center">
-        <img src="/icon-uploadphoto.svg" alt="" className="w-10 h-10 brightness-0 invert" aria-hidden />
-      </div>
-      <span className="text-[#2b2b2b] text-lg font-semibold">
-        Upload a photo of it
-      </span>
-    </button>
-  );
-}
 
 /** Format 24h "HH:MM" to friendly time (e.g. "2:30 PM"). */
 function formatTime24(hhmm: string): string {
@@ -347,9 +313,19 @@ export function ScanPage() {
 
   if (!capturedImage) {
     return (
-      <div className="p-6 max-w-lg mx-auto space-y-4">
-        <TakePhoto onClick={() => fileInputRef.current?.click()} />
-        <UploadPhoto onClick={() => fileInputRef.current?.click()} />
+      <div className="p-6 max-w-lg mx-auto space-y-6">
+        <CardBlue
+          onClick={() => fileInputRef.current?.click()}
+          icon={<Camera className="w-10 h-10 text-white" />}
+        >
+          Take a photo of the parking sign
+        </CardBlue>
+        <CardBlue
+          onClick={() => fileInputRef.current?.click()}
+          icon={<img src="/icon-uploadphoto.svg" alt="" className="w-10 h-10 brightness-0 invert" aria-hidden />}
+        >
+          Upload a photo of it
+        </CardBlue>
         <input
           ref={fileInputRef}
           type="file"
@@ -363,7 +339,7 @@ export function ScanPage() {
           onClick={() => navigate("/")}
           className="text-[#155dfc] font-medium text-sm"
         >
-          Back to home
+          Back
         </button>
       </div>
     );
@@ -443,7 +419,7 @@ export function ScanPage() {
           onClick={() => navigate("/")}
           className="text-[#155dfc] font-medium text-sm"
         >
-          Back to home
+          Back
         </button>
       )}
     </div>
