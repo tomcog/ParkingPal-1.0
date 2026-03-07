@@ -88,7 +88,7 @@ function SignInScreen({
           <div className="flex flex-col items-center gap-4 w-full">
             <img src="/pplogo.svg" alt="ParkingPal" className="h-[74px] w-auto object-contain" />
             <p className="text-center text-[16px] leading-5 text-[#717182]">
-              Sign in to sync your parking status and permits
+              Find your spot.
             </p>
           </div>
 
