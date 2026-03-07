@@ -87,7 +87,7 @@ function SignInScreen({
         <div className="w-full max-w-[360px] flex flex-col items-start gap-8">
           <div className="flex flex-col items-center gap-4 w-full">
             <img src="/pplogo.svg" alt="ParkingPal" className="h-[74px] w-auto object-contain" />
-            <p className="text-center text-[16px] leading-5 text-[#717182]">
+            <p className="text-center text-[24px] leading-5 text-[#135DFC] font-semibold">
               Find your spot.
             </p>
           </div>
