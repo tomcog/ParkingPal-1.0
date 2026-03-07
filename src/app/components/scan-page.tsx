@@ -17,10 +17,34 @@ import { analyzeParkingSign, getGeminiKey, type ParkingAnalysis } from "./gemini
 import { loadPermits } from "./permits-storage";
 import { compressImage } from "./compress-image";
 import { getLocation } from "./dev-mode";
-import { saveParkedLocationAndSync } from "./parking-storage";
+import { saveParkedLocationAndSync, type ParkingTimer } from "./parking-storage";
 
 type ScanState = { capturedImage?: string; mimeType?: string } | null;
 
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
+
+/** Compute timestamp for next occurrence of the given day and 24h time (e.g. "Friday", "10:00"). */
+function getNextOccurrenceTimestamp(
+  day: string,
+  timeHHMM: string
+): number {
+  const [hh, mm] = timeHHMM.split(":").map(Number);
+  const targetHour = Number.isNaN(hh) ? 10 : hh;
+  const targetMin = Number.isNaN(mm) ? 0 : mm;
+  const dayNorm = day.trim().toLowerCase().replace(/^next\s+/, "");
+  const targetDayIndex = DAY_NAMES.findIndex((d) => d.toLowerCase() === dayNorm);
+  const targetDay = targetDayIndex >= 0 ? targetDayIndex : 5; // default Friday if unparseable
+
+  const now = new Date();
+  let d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), targetHour, targetMin, 0, 0);
+  let daysToAdd = (targetDay - now.getDay() + 7) % 7;
+  if (daysToAdd === 0 && d.getTime() <= now.getTime()) daysToAdd = 7;
+  if (day.trim().toLowerCase().startsWith("next ")) {
+    daysToAdd = daysToAdd === 0 ? 7 : daysToAdd;
+  }
+  d.setDate(d.getDate() + daysToAdd);
+  return d.getTime();
+}
 
 /** Format 24h "HH:MM" to friendly time (e.g. "2:30 PM"). */
 function formatTime24(hhmm: string): string {
@@ -41,7 +65,7 @@ function ParkingResultView({
   parkHereError,
 }: {
   data: ParkingAnalysis;
-  onParkHere: () => void;
+  onParkHere: (nextRestriction?: { time: string; label: string; day?: string | null }) => void;
   onScanAnother: () => void;
   onDismissRestriction: () => void;
   parkHereLoading?: boolean;
@@ -162,7 +186,7 @@ function ParkingResultView({
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={onParkHere}
+              onClick={() => onParkHere(data.nextRestriction ?? undefined)}
               className="flex flex-1 items-center justify-center gap-2 rounded-[8px] bg-white/20 py-2 font-medium text-[14px] text-white"
             >
               <Timer className="h-4 w-4" />
@@ -282,21 +306,36 @@ export function ScanPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
 
-  const handleParkHere = useCallback(() => {
-    setParkHereError(null);
-    setParkHereLoading(true);
-    getLocation()
-      .then(({ lat, lng }) => {
-        saveParkedLocationAndSync({ lat, lng, timestamp: Date.now() });
-        navigate("/", { state: { openTimerDrawer: true } });
-      })
-      .catch((err: Error) => {
-        setParkHereError(err.message);
-      })
-      .finally(() => {
-        setParkHereLoading(false);
-      });
-  }, [navigate]);
+  const handleParkHere = useCallback(
+    (nextRestriction?: { time: string; label: string; day?: string | null }) => {
+      setParkHereError(null);
+      setParkHereLoading(true);
+      getLocation()
+        .then(({ lat, lng }) => {
+          const parked = { lat, lng, timestamp: Date.now() };
+          let timer: ParkingTimer | undefined;
+          if (nextRestriction?.time && nextRestriction?.label) {
+            const day = nextRestriction.day ?? new Date().toLocaleDateString("en-US", { weekday: "long" });
+            const endTime = getNextOccurrenceTimestamp(day, nextRestriction.time);
+            timer = {
+              type: "moveby",
+              label: nextRestriction.label,
+              endTime,
+            };
+          }
+          saveParkedLocationAndSync(timer ? { ...parked, timer } : parked);
+          if (timer) navigate("/");
+          else navigate("/", { state: { openTimerDrawer: true } });
+        })
+        .catch((err: Error) => {
+          setParkHereError(err.message);
+        })
+        .finally(() => {
+          setParkHereLoading(false);
+        });
+    },
+    [navigate]
+  );
 
   useEffect(() => {
     if (!capturedImage || !getGeminiKey()) return;

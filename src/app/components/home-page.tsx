@@ -49,8 +49,8 @@ export function HomePage() {
   const [showTimerDrawer, setShowTimerDrawer] = useState(false);
   const [meterMinutes, setMeterMinutes] = useState("");
   const [customMinutes, setCustomMinutes] = useState("");
-  const [meterMoveByTime, setMeterMoveByTime] = useState("");
-  const timeInputRef = useRef<HTMLInputElement>(null);
+  const [moveByDateTime, setMoveByDateTime] = useState("");
+  const dateTimeInputRef = useRef<HTMLInputElement>(null);
   const customInputRef = useRef<HTMLInputElement>(null);
   const drawerContentRef = useRef<HTMLDivElement>(null);
   const [drawerHeight, setDrawerHeight] = useState(0);
@@ -76,7 +76,7 @@ export function HomePage() {
     if (loaded && (location.state as { openTimerDrawer?: boolean } | null)?.openTimerDrawer) {
       setMeterMinutes("");
       setCustomMinutes("");
-      setMeterMoveByTime("");
+      setMoveByDateTime("");
       setShowTimerDrawer(true);
       navigate(".", { replace: true, state: {} });
     }
@@ -134,7 +134,7 @@ export function HomePage() {
         setShowTimerDrawer(true);
         setMeterMinutes("");
         setCustomMinutes("");
-        setMeterMoveByTime("");
+        setMoveByDateTime("");
       })
       .catch((err: Error) => {
         setIsLocating(false);
@@ -145,14 +145,14 @@ export function HomePage() {
   const openTimerDrawer = useCallback(() => {
     setMeterMinutes("");
     setCustomMinutes("");
-    setMeterMoveByTime("");
+    setMoveByDateTime("");
     setShowTimerDrawer(true);
   }, []);
 
   const closeTimerDrawer = useCallback(() => {
     setMeterMinutes("");
     setCustomMinutes("");
-    setMeterMoveByTime("");
+    setMoveByDateTime("");
     setShowTimerDrawer(false);
   }, []);
 
@@ -174,26 +174,25 @@ export function HomePage() {
         } else {
           setTimeout(() => setParked({ ...parked, timer }), BOTTOM_DRAWER_CLOSE_MS);
         }
-      } else if (meterMoveByTime) {
-        const [hh, mm] = meterMoveByTime.split(":").map(Number);
-        const target = new Date();
-        target.setHours(hh, mm, 0, 0);
-        if (target.getTime() <= Date.now()) target.setDate(target.getDate() + 1);
-        const timer: ParkingTimerType = {
-          type: "moveby",
-          label: `Move car by ${target.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`,
-          endTime: target.getTime(),
-        };
-        saveParkedLocationAndSync({ ...parked, timer });
-        if (hadTimer) {
-          setParked({ ...parked, timer });
-        } else {
-          setTimeout(() => setParked({ ...parked, timer }), BOTTOM_DRAWER_CLOSE_MS);
+      } else if (moveByDateTime) {
+        const target = new Date(moveByDateTime);
+        if (!Number.isNaN(target.getTime()) && target.getTime() > Date.now()) {
+          const timer: ParkingTimerType = {
+            type: "moveby",
+            label: `Move car by ${target.toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`,
+            endTime: target.getTime(),
+          };
+          saveParkedLocationAndSync({ ...parked, timer });
+          if (hadTimer) {
+            setParked({ ...parked, timer });
+          } else {
+            setTimeout(() => setParked({ ...parked, timer }), BOTTOM_DRAWER_CLOSE_MS);
+          }
         }
       }
     }
     closeTimerDrawer();
-  }, [parked, meterMinutes, customMinutes, meterMoveByTime, closeTimerDrawer]);
+  }, [parked, meterMinutes, customMinutes, moveByDateTime, closeTimerDrawer]);
 
   const handleRemoveTimer = useCallback(() => {
     if (!parked) return;
@@ -286,6 +285,7 @@ export function HomePage() {
   const isUrgent =
     timerRemaining &&
     !timerRemaining.expired &&
+    timerRemaining.days === 0 &&
     timerRemaining.hours === 0 &&
     timerRemaining.minutes < 5;
 
@@ -327,16 +327,20 @@ export function HomePage() {
                   </p>
                 ) : (
                   <p className="text-white text-2xl leading-[30px] tracking-[0.3828px]">
-                    {timerRemaining?.hours ? (
+                    {timerRemaining?.days ? (
                       <>
-                        <span className="font-semibold">{String(timerRemaining.hours).padStart(2, "0")}</span>
+                        <span className="font-semibold">{timerRemaining.days}</span>
+                        <span className="font-light">d </span>
+                      </>
+                    ) : null}
+                    {timerRemaining?.hours || timerRemaining?.days ? (
+                      <>
+                        <span className="font-semibold">{String(timerRemaining?.hours ?? 0).padStart(2, "0")}</span>
                         <span className="font-light">h </span>
                       </>
                     ) : null}
                     <span className="font-semibold">{String(timerRemaining?.minutes ?? 0).padStart(2, "0")}</span>
-                    <span className="font-light">m </span>
-                    <span className="font-semibold">{String(timerRemaining?.seconds ?? 0).padStart(2, "0")}</span>
-                    <span className="font-light">s</span>
+                    <span className="font-light">m</span>
                   </p>
                 )}
                 <button
@@ -414,7 +418,7 @@ export function HomePage() {
                         onClick={() => {
                           setMeterMinutes(isSelected ? "" : String(mins));
                           setCustomMinutes("");
-                          setMeterMoveByTime("");
+                          setMoveByDateTime("");
                         }}
                         className={`h-10 px-3 rounded cursor-pointer transition-colors ${
                           isSelected ? "bg-[#2b2b2b]" : "bg-[#34c759]"
@@ -438,7 +442,7 @@ export function HomePage() {
                       onChange={(e) => {
                         setCustomMinutes(e.target.value);
                         setMeterMinutes("");
-                        setMeterMoveByTime("");
+                        setMoveByDateTime("");
                       }}
                       placeholder="--"
                       min={1}
@@ -447,35 +451,42 @@ export function HomePage() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <div className="relative bg-[#34c759] h-10 px-4 rounded flex items-center overflow-hidden">
-                    <span className="text-white font-semibold text-base pointer-events-none">
-                      {meterMoveByTime
+                  <div className="relative bg-[#34c759] h-10 px-4 rounded flex items-center overflow-hidden min-w-0">
+                    <span className="text-white font-semibold text-base pointer-events-none truncate">
+                      {moveByDateTime
                         ? (() => {
-                            const [hh, mm] = meterMoveByTime
-                              .split(":")
-                              .map(Number);
-                            const d = new Date();
-                            d.setHours(hh, mm);
-                            return d.toLocaleTimeString([], {
-                              hour: "numeric",
-                              minute: "2-digit",
-                            });
+                            const d = new Date(moveByDateTime);
+                            return Number.isNaN(d.getTime())
+                              ? "Pick a time"
+                              : d.toLocaleString([], {
+                                  weekday: "short",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                });
                           })()
                         : "Pick a time"}
                     </span>
                     <input
-                      ref={timeInputRef}
-                      type="time"
-                      value={meterMoveByTime}
+                      ref={dateTimeInputRef}
+                      type="datetime-local"
+                      value={moveByDateTime}
+                      min={(() => {
+                        const n = new Date();
+                        const pad = (x: number) => String(x).padStart(2, "0");
+                        return `${n.getFullYear()}-${pad(n.getMonth() + 1)}-${pad(n.getDate())}T${pad(n.getHours())}:${pad(n.getMinutes())}`;
+                      })()}
                       onChange={(e) => {
-                        setMeterMoveByTime(e.target.value);
+                        setMoveByDateTime(e.target.value);
                         setMeterMinutes("");
                         setCustomMinutes("");
                       }}
                       className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      aria-label="Pick date and time"
                     />
                   </div>
-                  {meterMinutes || customMinutes || meterMoveByTime ? (
+                  {meterMinutes || customMinutes || moveByDateTime ? (
                     <button
                       onClick={handleDone}
                       className="bg-[#1751d2] h-10 px-4 rounded flex gap-2 items-center justify-center cursor-pointer"

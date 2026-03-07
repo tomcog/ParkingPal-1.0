@@ -384,6 +384,23 @@ function extractLayerTree() {
       };
     }
 
+    // ── BUTTON / role=button: screenshot for pixel-perfect rendering ──────────
+    // Buttons often mix SVG icons with text nodes — reconstructing their layout
+    // correctly is unreliable. A Puppeteer screenshot is always faithful.
+    if (tag === 'BUTTON' || el.getAttribute('role') === 'button') {
+      const btnKey = '__btn_' + (++window.__svgIdx) + '__';
+      window.__svgCaptures[btnKey] = { left: rect.left, top: rect.top, width: w, height: h };
+      return {
+        type: 'RECTANGLE',
+        name: el.textContent.trim().slice(0, 40) || 'button',
+        x, y, w, h,
+        fills: [{ type: 'IMAGE', imageUrl: btnKey, scaleMode: 'FIT' }],
+        strokes: [], strokeWeight: 0, strokeAlign: 'INSIDE',
+        cornerRadius, tl, tr, bl, br,
+        effects, opacity, children: [],
+      };
+    }
+
     // ── Pure text leaf node ────────────────────────────────────────────────
     const directText = Array.from(el.childNodes)
       .filter(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim())
@@ -419,18 +436,23 @@ function extractLayerTree() {
         ? (color || { r: 0, g: 0, b: 0, a: 1 })
         : { r: 0.6, g: 0.6, b: 0.6, a: 1 }; // placeholder grey
 
+      // Vertically center the text within the input (CSS inputs center text by default)
+      const paddingLeft = parseFloat(style.paddingLeft) || 8;
+      const textY = tag === 'TEXTAREA' ? (parseFloat(style.paddingTop) || 8)
+                                       : Math.max(0, Math.round((h - fontSize * 1.2) / 2));
+
       const children = displayText ? [{
         type: 'TEXT',
         name: displayText.slice(0, 40),
         content: displayText,
-        x: parseFloat(style.paddingLeft) || 8,
-        y: 0,
-        w: Math.max(w - 16, 1),
-        h,
+        x: paddingLeft,
+        y: textY,
+        w: Math.max(w - paddingLeft - (parseFloat(style.paddingRight) || 8), 1),
+        h: Math.round(fontSize * 1.2),
         fontFamily, fontStyle, fontWeight, fontSize,
         color: textColor,
         textAlignHorizontal: 'LEFT',
-        lineHeight: h,
+        lineHeight: fontSize * 1.2,
         letterSpacing: 0,
         opacity: 1,
         fills: [], strokes: [], effects: [], children: [],

@@ -38,6 +38,7 @@ figma.ui.onmessage = async function(msg) {
 // ─── Main import function ─────────────────────────────────────────────────────
 
 async function importLayers(layerData, imagesB64) {
+  console.log('[import] v2 — layerData type:', layerData && layerData.type, 'images count:', Object.keys(imagesB64).length);
   var step = 'init';
   try {
     // 1. Switch to the target page and find the anchor node
@@ -85,6 +86,7 @@ async function importLayers(layerData, imagesB64) {
     step = 'register images';
     var imageMap = {};
     var imageEntries = Object.keys(imagesB64);
+    console.log('[import] images received:', imageEntries.length, imageEntries.join(', '));
     for (var ei = 0; ei < imageEntries.length; ei++) {
       var url = imageEntries[ei];
       var b64 = imagesB64[url];
@@ -92,7 +94,10 @@ async function importLayers(layerData, imagesB64) {
         var bytes = Uint8Array.from(atob(b64), function(c) { return c.charCodeAt(0); });
         var img   = figma.createImage(bytes);
         imageMap[url] = img.hash;
-      } catch (e) {}
+        console.log('[import] registered image:', url, '→', img.hash.slice(0, 12) + '…');
+      } catch (e) {
+        console.error('[import] createImage FAILED for', url, ':', e && e.message ? e.message : String(e));
+      }
     }
 
     // 4. Build the node tree

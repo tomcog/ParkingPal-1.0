@@ -74,6 +74,7 @@ export function formatTimeAgo(timestamp: number): string {
 
 export function getTimeRemaining(endTime: number): {
   total: number;
+  days: number;
   hours: number;
   minutes: number;
   seconds: number;
@@ -81,11 +82,15 @@ export function getTimeRemaining(endTime: number): {
 } {
   const total = endTime - Date.now();
   if (total <= 0) {
-    return { total: 0, hours: 0, minutes: 0, seconds: 0, expired: true };
+    return { total: 0, days: 0, hours: 0, minutes: 0, seconds: 0, expired: true };
   }
+  const totalHours = Math.floor(total / 3600000);
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
   return {
     total,
-    hours: Math.floor(total / 3600000),
+    days,
+    hours,
     minutes: Math.floor((total % 3600000) / 60000),
     seconds: Math.floor((total % 60000) / 1000),
     expired: false,
@@ -93,10 +98,11 @@ export function getTimeRemaining(endTime: number): {
 }
 
 export function formatCountdown(endTime: number): string {
-  const { hours, minutes, seconds, expired } = getTimeRemaining(endTime);
+  const { days, hours, minutes, expired } = getTimeRemaining(endTime);
   if (expired) return "Expired";
-  if (hours > 0) {
-    return `${hours}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
-  }
-  return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0 || days > 0) parts.push(`${hours}h`);
+  parts.push(`${String(minutes).padStart(2, "0")}m`);
+  return parts.join(" ");
 }

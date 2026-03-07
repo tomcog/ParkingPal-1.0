@@ -1,6 +1,5 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { useAuth } from "../lib/auth-context";
-import { Card, CardContent } from "./ui/card";
 import { ButtonStandard } from "./button-standard";
 import { IconSignIn } from "./icon-signin";
 import { Loader2 } from "lucide-react";
@@ -41,8 +40,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (showLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f5f5f7]">
-        <p className="flex items-center gap-2 text-sm text-[#717182]">
+      <div className="flex min-h-screen items-center justify-center bg-[#ebf4ff]">
+        <p className="flex items-center gap-2 text-base text-[#717182]">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading…
         </p>
@@ -83,85 +82,82 @@ function SignInScreen({
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#f5f5f7]">
-      {/* Top branding — aligns with Figma ParkingPal1.0 sign-in */}
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-        <div className="w-full max-w-[360px] space-y-8">
-          <div className="flex flex-col items-center gap-4">
-            <img src="/pplogo.svg" alt="ParkingPal" className="h-10" />
-            <p className="text-center text-sm text-[#717182]">
+    <div className="flex min-h-screen flex-col bg-[#ebf4ff]">
+      <div className="flex flex-1 flex-col items-center px-6 pt-[124px] pb-12">
+        <div className="w-full max-w-[360px] flex flex-col items-start gap-8">
+          <div className="flex flex-col items-center gap-4 w-full">
+            <img src="/pplogo.svg" alt="ParkingPal" className="h-[74px] w-auto object-contain" />
+            <p className="text-center text-[16px] leading-5 text-[#717182]">
               Sign in to sync your parking status and permits
             </p>
           </div>
 
-          <Card className="rounded-xl border-[#e5e7eb] bg-white shadow-sm">
-            <CardContent className="p-5 space-y-4">
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label htmlFor="auth-email" className="sr-only">
-                    Email
-                  </label>
-                  <input
-                    id="auth-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Email"
-                    required
-                    autoComplete="email"
-                    className="w-full rounded-[8px] border border-[#e5e7eb] bg-white px-4 py-3 text-[15px] text-[#0a0a0a] placeholder:text-[#9ca3af] focus:border-[#155dfc] focus:outline-none focus:ring-1 focus:ring-[#155dfc]"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="auth-password" className="sr-only">
-                    Password
-                  </label>
-                  <input
-                    id="auth-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Password"
-                    required
-                    autoComplete={isSignUp ? "new-password" : "current-password"}
-                    className="w-full rounded-[8px] border border-[#e5e7eb] bg-white px-4 py-3 text-[15px] text-[#0a0a0a] placeholder:text-[#9ca3af] focus:border-[#155dfc] focus:outline-none focus:ring-1 focus:ring-[#155dfc]"
-                  />
-                </div>
-                {authError && (
-                  <p className="text-sm text-[#dc2626]" role="alert">
-                    {authError}
-                  </p>
-                )}
-                <ButtonStandard
-                  type="submit"
-                  disabled={authLoading}
-                  icon={
-                    authLoading ? (
-                      <Loader2 className="h-5 w-5 animate-spin text-white" />
-                    ) : (
-                      <IconSignIn className="w-5 h-5 text-white shrink-0" />
-                    )
-                  }
+          <div className="w-full rounded-[12px] bg-[#ccdcff] p-5 flex flex-col gap-4">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <div>
+                <label htmlFor="auth-email" className="sr-only">
+                  Email
+                </label>
+                <input
+                  id="auth-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email"
+                  required
+                  autoComplete="email"
+                  className="w-full h-12 rounded-[4px] border-0 bg-white px-4 py-3 text-[18px] text-[#2b2b2b] placeholder:text-[#888] focus:outline-none focus:ring-2 focus:ring-[#155dfc] focus:ring-inset"
+                />
+              </div>
+              <div>
+                <label htmlFor="auth-password" className="sr-only">
+                  Password
+                </label>
+                <input
+                  id="auth-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  required
+                  autoComplete={isSignUp ? "new-password" : "current-password"}
+                  className="w-full h-12 rounded-[4px] border-0 bg-white px-4 py-3 text-[18px] text-[#2b2b2b] placeholder:text-[#888] focus:outline-none focus:ring-2 focus:ring-[#155dfc] focus:ring-inset"
+                />
+              </div>
+              {authError && (
+                <p className="text-sm text-[#dc2626]" role="alert">
+                  {authError}
+                </p>
+              )}
+              <ButtonStandard
+                type="submit"
+                disabled={authLoading}
+                icon={
+                  authLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-white" />
+                  ) : (
+                    <IconSignIn className="w-5 h-5 text-white shrink-0" />
+                  )
+                }
+              >
+                {authLoading ? "Signing in…" : isSignUp ? "Sign up" : "Sign in"}
+              </ButtonStandard>
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setIsSignUp((s) => !s)}
+                  className="text-[16px] font-medium leading-5 text-[#155dfc] hover:underline"
                 >
-                  {authLoading ? "Signing in…" : isSignUp ? "Sign up" : "Sign in"}
-                </ButtonStandard>
-                <div className="flex justify-center">
-                  <button
-                    type="button"
-                    onClick={() => setIsSignUp((s) => !s)}
-                    className="text-sm font-medium text-[#155dfc] hover:underline"
-                  >
-                    {isSignUp ? "Already have an account? Sign in" : "Need an account? Sign up"}
-                  </button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
+                  {isSignUp ? "Already have an account? Sign in" : "Need an account? Sign up"}
+                </button>
+              </div>
+            </form>
+          </div>
 
           <button
             type="button"
             onClick={onSkip}
-            className="w-full rounded-[8px] border border-[#e5e7eb] bg-white py-3 text-sm font-medium text-[#717182] hover:bg-[#f9fafb] active:bg-[#f3f4f6]"
+            className="w-full py-3 text-[16px] font-medium leading-5 text-[#155dfc] hover:underline active:opacity-80"
           >
             Use without signing in
           </button>
