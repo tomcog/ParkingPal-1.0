@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dev Server → Figma</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+    font-size: 13px;
+    color: #1a1a1a;
+    background: #fff;
+    padding: 20px;
+    min-height: 100vh;
+  }
+
+  h2 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  h2 span.badge {
+    background: #7B5EF6;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+  }
+
+  label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+  }
+
+  input[type="text"] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+    background: #fafafa;
+  }
+  input[type="text"]:focus { border-color: #7B5EF6; background: #fff; }
+
+  .row { margin-bottom: 14px; }
+
+  .row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .hint {
+    font-size: 11px;
+    color: #999;
+    margin-top: 4px;
+  }
+
+  .capture-btn {
+    width: 100%;
+    padding: 10px;
+    background: #7B5EF6;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+    margin-top: 4px;
+  }
+  .capture-btn:hover:not(:disabled) { background: #6344e0; }
+  .capture-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Status bar */
+  #status {
+    margin-top: 14px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.5;
+    display: none;
+  }
+  #status.info    { background: #f0edfe; color: #4a26d6; display: block; }
+  #status.success { background: #edfaf0; color: #1a7a3a; display: block; }
+  #status.error   { background: #fef0f0; color: #b02020; display: block; }
+
+  /* Preview */
+  #preview-wrap {
+    margin-top: 16px;
+    display: none;
+  }
+  #preview-wrap h3 {
+    font-size: 11px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+  }
+  #preview-img {
+    width: 100%;
+    border-radius: 6px;
+    border: 1px solid #e5e5e5;
+    display: block;
+  }
+  #preview-stats {
+    margin-top: 8px;
+    font-size: 11px;
+    color: #888;
+    display: flex;
+    gap: 16px;
+  }
+  #preview-stats span b { color: #333; }
+
+  /* Progress steps */
+  #steps {
+    margin-top: 14px;
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #666;
+    transition: color 0.2s;
+  }
+  .step.active   { color: #7B5EF6; }
+  .step.done     { color: #1a7a3a; }
+  .step.error-s  { color: #b02020; }
+  .step-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #ddd;
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+  .step.active  .step-dot { background: #7B5EF6; animation: pulse 1s infinite; }
+  .step.done    .step-dot { background: #1a7a3a; }
+  .step.error-s .step-dot { background: #b02020; }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1);   opacity: 1; }
+    50%       { transform: scale(1.4); opacity: 0.7; }
+  }
+
+  .divider { border: none; border-top: 1px solid #efefef; margin: 16px 0; }
+
+  .tip {
+    background: #f7f5ff;
+    border-left: 3px solid #7B5EF6;
+    padding: 8px 10px;
+    border-radius: 0 6px 6px 0;
+    font-size: 11px;
+    color: #555;
+    line-height: 1.5;
+    margin-top: 12px;
+  }
+  .tip b { color: #7B5EF6; }
+</style>
+</head>
+<body>
+
+<h2>Dev Server → Figma <span class="badge">ParkingPal</span></h2>
+
+<div class="row">
+  <label>Companion server</label>
+  <input type="text" id="companion" value="http://localhost:3333" />
+  <p class="hint">Run <code>node companion/server.js</code> before capturing</p>
+</div>
+
+<div class="row">
+  <label>Page URL to capture</label>
+  <input type="text" id="pageUrl" value="http://localhost:5173/" />
+  <p class="hint">AuthGate shows automatically when no session exists (fresh Puppeteer browser)</p>
+</div>
+
+<div class="row">
+  <label>Wait for selector (optional)</label>
+  <input type="text" id="waitSelector" value="input[type=email]" />
+  <p class="hint">Ensures Supabase auth resolves before capture — waits for the email input</p>
+</div>
+
+<div class="row-2">
+  <div>
+    <label>Viewport width</label>
+    <input type="text" id="vpWidth" value="1440" />
+  </div>
+  <div>
+    <label>Viewport height</label>
+    <input type="text" id="vpHeight" value="900" />
+  </div>
+</div>
+
+<button class="capture-btn" id="captureBtn">Capture &amp; Import</button>
+
+<div id="steps">
+  <div class="step" id="s1"><div class="step-dot"></div>Connecting to companion server…</div>
+  <div class="step" id="s2"><div class="step-dot"></div>Rendering page with Puppeteer…</div>
+  <div class="step" id="s3"><div class="step-dot"></div>Extracting DOM layer tree…</div>
+  <div class="step" id="s4"><div class="step-dot"></div>Fetching images…</div>
+  <div class="step" id="s5"><div class="step-dot"></div>Creating Figma layers…</div>
+</div>
+
+<div id="status"></div>
+
+<div id="preview-wrap">
+  <hr class="divider" />
+  <h3>Captured preview</h3>
+  <img id="preview-img" alt="Page preview" />
+  <div id="preview-stats"></div>
+</div>
+
+<div class="tip">
+  <b>Tip:</b> Make sure your dev server is running at the URL above and
+  the companion server is started in a separate terminal. The signin page
+  will be placed on the <em>From Cursor</em> canvas in Figma.
+</div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+let isRunning = false;
+
+// ─── UI helpers ───────────────────────────────────────────────────────────────
+
+function setStatus(msg, type = 'info') {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className   = type;
+}
+
+function clearStatus() {
+  const el = document.getElementById('status');
+  el.textContent = '';
+  el.className   = '';
+  el.style.display = 'none';
+}
+
+function stepState(id, state) { // state: '' | 'active' | 'done' | 'error-s'
+  const el = document.getElementById(id);
+  el.className = 'step ' + state;
+}
+
+function resetSteps() {
+  ['s1','s2','s3','s4','s5'].forEach(id => stepState(id, ''));
+}
+
+function showSteps() {
+  document.getElementById('steps').style.display = 'flex';
+}
+
+function hideSteps() {
+  document.getElementById('steps').style.display = 'none';
+}
+
+function countLayers(node) {
+  let n = 1;
+  for (const c of node.children || []) n += countLayers(c);
+  return n;
+}
+
+// ─── Main capture flow ────────────────────────────────────────────────────────
+
+document.getElementById('captureBtn').addEventListener('click', async () => {
+  if (isRunning) return;
+  isRunning = true;
+
+  const btn        = document.getElementById('captureBtn');
+  const companion    = document.getElementById('companion').value.trim().replace(/\/$/, '');
+  const pageUrl      = document.getElementById('pageUrl').value.trim();
+  const waitSelector = document.getElementById('waitSelector').value.trim();
+  const vpWidth      = parseInt(document.getElementById('vpWidth').value,  10) || 1440;
+  const vpHeight     = parseInt(document.getElementById('vpHeight').value, 10) || 900;
+
+  btn.disabled = true;
+  clearStatus();
+  resetSteps();
+  showSteps();
+  document.getElementById('preview-wrap').style.display = 'none';
+
+  try {
+    // Step 1 – connect
+    stepState('s1', 'active');
+    const captureEndpoint =
+      `${companion}/capture` +
+      `?url=${encodeURIComponent(pageUrl)}` +
+      `&width=${vpWidth}` +
+      `&height=${vpHeight}` +
+      (waitSelector ? `&selector=${encodeURIComponent(waitSelector)}` : '');
+
+    let response;
+    try {
+      response = await fetch(captureEndpoint);
+    } catch (e) {
+      stepState('s1', 'error-s');
+      throw new Error(`Cannot reach companion at ${companion}. Is "node companion/server.js" running?`);
+    }
+
+    stepState('s1', 'done');
+
+    // Step 2 – rendering (already done server-side, we just parse response)
+    stepState('s2', 'active');
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: response.statusText }));
+      stepState('s2', 'error-s');
+      throw new Error(`Companion error: ${err.error}`);
+    }
+
+    const data = await response.json();
+    stepState('s2', 'done');
+
+    // Step 3 – layer tree received
+    stepState('s3', 'active');
+    const { layers, screenshot, images = {} } = data;
+    if (!layers) throw new Error('No layer data returned from companion.');
+    stepState('s3', 'done');
+
+    // Show screenshot preview
+    if (screenshot) {
+      const img = document.getElementById('preview-img');
+      img.src = `data:image/png;base64,${screenshot}`;
+      const layerCount = countLayers(layers);
+      const imgCount   = Object.keys(images).length;
+      document.getElementById('preview-stats').innerHTML =
+        `<span><b>${layerCount}</b> layers</span>` +
+        `<span><b>${vpWidth}×${vpHeight}</b> px</span>` +
+        `<span><b>${imgCount}</b> images</span>`;
+      document.getElementById('preview-wrap').style.display = 'block';
+    }
+
+    // Step 4 – images already pre-fetched by companion server
+    stepState('s4', 'active');
+    stepState('s4', 'done');
+
+    // Step 5 – send to Figma plugin main
+    stepState('s5', 'active');
+    parent.postMessage({
+      pluginMessage: { type: 'CREATE_LAYERS', layerData: layers, images }
+    }, '*');
+    // Done state is set when we hear back from code.js
+
+  } catch (err) {
+    setStatus('✗ ' + err.message, 'error');
+    hideSteps();
+    isRunning = false;
+    btn.disabled = false;
+  }
+});
+
+// ─── Messages from code.js ────────────────────────────────────────────────────
+
+window.onmessage = (event) => {
+  const msg = event.data.pluginMessage;
+  if (!msg) return;
+
+  if (msg.type === 'DONE') {
+    stepState('s5', 'done');
+    setStatus('✓ Layers imported successfully! Check the Figma canvas.', 'success');
+    isRunning = false;
+    document.getElementById('captureBtn').disabled = false;
+  }
+
+  if (msg.type === 'ERROR') {
+    stepState('s5', 'error-s');
+    setStatus('✗ ' + msg.message, 'error');
+    isRunning = false;
+    document.getElementById('captureBtn').disabled = false;
+  }
+};
+</script>
+</body>
+</html>

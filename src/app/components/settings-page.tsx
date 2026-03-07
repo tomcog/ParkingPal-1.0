@@ -8,6 +8,7 @@ import { IconSignIn } from "./icon-signin";
 import { loadPermits, savePermitsAndSync } from "./permits-storage";
 
 const MAX_PERMITS = 3;
+const SKIP_SIGNIN_KEY = "parkingpal_skip_signin";
 
 export function SettingsPage() {
   const navigate = useNavigate();
@@ -64,6 +65,15 @@ export function SettingsPage() {
   const handleSignOut = async () => {
     setAuthError(null);
     await signOut();
+  };
+
+  const handleShowSignInPage = async () => {
+    try {
+      sessionStorage.removeItem(SKIP_SIGNIN_KEY);
+      await signOut();
+    } finally {
+      window.location.replace("/");
+    }
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -157,6 +167,15 @@ export function SettingsPage() {
               >
                 Sign out
               </button>
+              <p className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleShowSignInPage}
+                  className="text-sm font-medium text-[#155dfc] hover:underline"
+                >
+                  Show sign-in page
+                </button>
+              </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-3">
@@ -199,7 +218,15 @@ export function SettingsPage() {
                   )}
                 </button>
               </div>
-             
+              <p className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleShowSignInPage}
+                  className="text-sm font-medium text-[#155dfc] hover:underline"
+                >
+                  Show sign-in page
+                </button>
+              </p>
             </form>
           )}
         </div>

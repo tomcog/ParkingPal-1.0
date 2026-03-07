@@ -16,14 +16,36 @@ function getParkingSignPrompt(permits: string[]): string {
   const now = new Date();
   const dayOfWeek = now.toLocaleDateString("en-US", { weekday: "long" });
   const date = now.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  const time = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  const time12h = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  const hours24 = now.getHours();
+  const mins = now.getMinutes();
+  const time24h = `${String(hours24).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+  const time = `${time12h} (${time24h})`;
   const permitSection =
     permits.length > 0
-      ? `\n\nUser's parking permits (they have these): ${permits.map((p) => `"${p}"`).join(", ")}. When the sign requires a permit or mentions permit-exempt parking, determine whether the user has a matching permit and set "permitRequired", "userHasPermit", and "permitNote" accordingly.`
+      ? `
+
+CRITICAL — The user has provided their parking permits. You MUST use this when deciding canPark:
+User's parking permits: ${permits.map((p) => `"${p}"`).join(", ")}.
+
+When the sign requires a permit or allows certain permits (e.g. "Permits Exempt 2R Any time"), match the user's permits flexibly (same text, abbreviations like "2R", "1E").
+
+STREET CLEANING / STREET SWEEPING — applies to everyone:
+• No one may park during street cleaning or street sweeping hours, including permit holders, unless the sign explicitly states that permit holders may park during street cleaning (rare). Treat street sweeping as a no-exemption rule: during the sweeping window, set canPark to "no" for everyone.
+• When the current time is outside the street sweeping window, the user may park if they have a matching permit. In the summary, do NOT say their permit "exempts" them from street sweeping. Say instead that it is outside street sweeping hours and their permit allows them to park here (e.g. "You can park here. Street sweeping is 10AM–12PM Friday; it's currently outside that window and your 2R permit allows you to park at this spot.").
+
+Other permit exemptions (non–street-sweeping):
+• If the sign exempts a permit from a different no-parking rule (not street cleaning/sweeping) and the user has that permit, set canPark to "yes" and userHasPermit to true. Do NOT set canPark to "no" when the sign explicitly exempts the user's permit from that rule.
+• If the sign only requires a permit (no time restriction) and the user has a matching permit, set canPark to "yes" and userHasPermit to true.`
       : "";
   return `You are a parking sign analysis assistant. Analyze the parking sign(s) in this image and determine whether someone can park here RIGHT NOW.
 
-Current date and time: ${dayOfWeek}, ${date} at ${time}${permitSection}
+Current date and time: ${dayOfWeek}, ${date} at ${time}
+
+CRITICAL — Use 24-hour time for all comparisons. Current 24-hour time: ${time24h}.
+• 11:21 PM = 23:21 (evening). 11:21 AM = 11:21 (morning). They are different: do NOT treat 23:21 as inside a 10:00–12:00 window.
+• A sign window "10AM–12PM" or "10 AM to 12 noon" means 10:00–12:00 in 24-hour. The restriction is in effect ONLY when the current 24-hour time is >= 10:00 AND < 12:00. So 11:21 is inside (cannot park); 23:21 is outside (can park if permitted).
+• Before setting canPark to "no" for street sweeping, check: is ${time24h} between the window start and end? If ${time24h} is 23:21 and the window is 10:00–12:00, the answer is no—set canPark to "yes" if the user has a matching permit.${permitSection}
 
 Please respond in the following JSON format ONLY (no markdown, no code fences, just raw JSON):
 {
@@ -36,7 +58,7 @@ Please respond in the following JSON format ONLY (no markdown, no code fences, j
   "parkUntil": "HH:MM" | null,
   "parkAfter": "HH:MM" | null,
   "parkAfterLabel": "short description" | null,
-  "nextRestriction": { "time": "HH:MM", "label": "short description" } | null,
+  "nextRestriction": { "time": "HH:MM", "label": "short description", "day": "day name (e.g. Friday, next Friday) or null if today" } | null,
   "permitRequired": true | false,
   "userHasPermit": true | false | null,
   "permitNote": "short note about permit requirement and whether user's permits match, or null"
@@ -46,11 +68,12 @@ If "canPark" is "conditional", explain what conditions apply.
 If the image doesn't contain a parking sign, set "canPark" to "conditional" with a summary explaining that no parking sign was detected.
 Be specific about time windows, days, and any special conditions visible on the sign.
 
-IMPORTANT — "nextRestriction" rules:
-• Only populate "nextRestriction" when "canPark" is "yes" AND a parking restriction (street cleaning, no-parking window, meter limit, tow-away zone, etc.) will begin within the next 4 hours on the current day (${dayOfWeek}).
-• "time" must be in 24-hour HH:MM format representing the exact local time the restriction starts (e.g. "14:00").
-• "label" should be a short human-readable description of the restriction (e.g. "Street cleaning begins", "No parking zone starts", "2-hour limit ends").
-• If no restriction is approaching within 4 hours, or if "canPark" is "no" or "conditional", set "nextRestriction" to null.
+IMPORTANT — "nextRestriction" rules (orange warning for when the user must move):
+• Populate "nextRestriction" when "canPark" is "yes" AND there is a known upcoming restriction that will next affect this user (street cleaning, no-parking window, meter limit, tow-away zone, etc.). Include the next occurrence even if it is hours or days away—e.g. if it is Friday 11:15 PM and street sweeping is 10AM–12PM Fridays, set nextRestriction so the user is warned they can park until Friday at 10:00 AM.
+• "time": 24-hour HH:MM when the restriction starts (e.g. "10:00").
+• "label": short description (e.g. "Street sweeping", "No parking zone starts").
+• "day": the day when the restriction applies—e.g. "Friday", "next Friday", "Saturday"; use null only when the restriction is later today (same day as current ${dayOfWeek}).
+• This gives the user a clear orange warning: "You can park here until [day] at [time]" before the restriction begins. If there is no such upcoming restriction, set "nextRestriction" to null.
 
 IMPORTANT — "parkUntil" rules:
 • Only populate "parkUntil" when "canPark" is "yes".
@@ -67,10 +90,13 @@ IMPORTANT — "parkAfter" and "parkAfterLabel" rules:
 • "parkAfterLabel" should be a short human-readable description of what ends (e.g. "Street cleaning ends", "No parking window ends", "Tow-away zone ends").
 • If "canPark" is "yes" or "conditional", set "parkAfter" and "parkAfterLabel" to null.
 
-PERMIT rules (when user provided permits):
+PERMIT rules (when user provided permits above):
 • "permitRequired": true if the sign indicates a permit is required for parking (e.g. "Permit 1E only", "Resident permit required"); false otherwise.
 • "userHasPermit": when permitRequired is true, set true if one of the user's permits matches what the sign allows (match by meaning or common abbreviations, e.g. "1E" matches "1E Permits Exempt"); false if none match; null when permitRequired is false.
-• "permitNote": brief note e.g. "Sign requires 1E permit; you have 1E" or "Permit required; you don't have a matching permit"; null when no permit is required.`;
+• "permitNote": brief note e.g. "Sign requires 1E permit; you have 1E" or "Permit required; you don't have a matching permit"; null when no permit is required.
+• When permitRequired is true AND userHasPermit is true (user has a matching permit), set canPark to "yes" and the summary must state that they can park with their permit.
+• Street cleaning / street sweeping: During the sweeping window, set canPark to "no" for everyone (no permit exemption unless the sign explicitly says permit holders may park during street cleaning). Outside the sweeping window, if the user has a permit that the sign allows (e.g. "Permits Exempt 2R Any time"), set canPark to "yes". In the summary, do NOT say the user's permit exempts them from street sweeping; say they can park because it's outside street sweeping hours and their permit allows them at this spot.
+• For other no-parking rules (not street sweeping), when the sign exempts the user's permit, set canPark to "yes" and userHasPermit to true.`;
 }
 
 export function getGeminiKey(): string | null {
@@ -98,7 +124,7 @@ export interface ParkingAnalysis {
   parkUntil: string | null;
   parkAfter: string | null;
   parkAfterLabel: string | null;
-  nextRestriction: { time: string; label: string } | null;
+  nextRestriction: { time: string; label: string; day?: string | null } | null;
   permitRequired?: boolean;
   userHasPermit?: boolean | null;
   permitNote?: string | null;
@@ -137,6 +163,7 @@ function parseParkingAnalysis(raw: string): ParkingAnalysis | null {
             ? {
                 time: String((p.nextRestriction as Record<string, unknown>).time),
                 label: String((p.nextRestriction as Record<string, unknown>).label),
+                day: typeof (p.nextRestriction as Record<string, unknown>).day === "string" ? (p.nextRestriction as Record<string, unknown>).day as string : undefined,
               }
             : null,
         permitRequired: typeof p.permitRequired === "boolean" ? p.permitRequired : undefined,

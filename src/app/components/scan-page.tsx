@@ -54,6 +54,7 @@ function ParkingResultView({
     isYes && data.nextRestriction && !restrictionDismissed;
   const mainRules = data.restrictions.length > 0 ? data.restrictions : data.details;
   const hasMainRules = mainRules.length > 0;
+  const showRestrictionsBlock = hasMainRules && !(isYes && data.userHasPermit);
 
   const handleDismiss = () => {
     setRestrictionDismissed(true);
@@ -147,10 +148,14 @@ function ParkingResultView({
             <Timer className="h-5 w-5 shrink-0 text-white" />
             <div className="min-w-0">
               <p className="font-medium text-[14px] leading-5 tracking-[-0.15px] text-white">
-                Upcoming restriction detected
+                {data.nextRestriction.day
+                  ? `You can park here until ${data.nextRestriction.day} at ${formatTime24(data.nextRestriction.time)}`
+                  : "Upcoming restriction detected"}
               </p>
               <p className="text-[14px] leading-5 tracking-[-0.15px] text-white/80">
-                {data.nextRestriction.label} at {formatTime24(data.nextRestriction.time)}
+                {data.nextRestriction.day
+                  ? data.nextRestriction.label
+                  : `${data.nextRestriction.label} at ${formatTime24(data.nextRestriction.time)}`}
               </p>
             </div>
           </div>
@@ -174,8 +179,8 @@ function ParkingResultView({
         </div>
       )}
 
-      {/* 5. Orange rules block — main restrictions list */}
-      {hasMainRules && (
+      {/* 5. Orange rules block — main restrictions list (hidden when user can park with permit to avoid confusion) */}
+      {showRestrictionsBlock && (
         <div className="flex flex-col gap-3 rounded-[14px] bg-[#ec8e0b] px-[18px] pt-[18px] pb-4">
           <div className="flex items-start gap-3">
             <Ban className="h-5 w-5 shrink-0 text-white" />
@@ -297,7 +302,8 @@ export function ScanPage() {
     if (!capturedImage || !getGeminiKey()) return;
     setAnalyzing(true);
     setResult(null);
-    analyzeParkingSign(capturedImage, loadPermits())
+    const userPermits = loadPermits();
+    analyzeParkingSign(capturedImage, userPermits)
       .then((res) => {
         if (res.ok) {
           if ("data" in res) setResult({ data: res.data });
