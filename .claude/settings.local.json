@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git clone:*)",
+      "Bash(git:*)",
+      "Bash(npm run:*)",
+      "Bash(rm:*)"
+    ]
+  }
+}
