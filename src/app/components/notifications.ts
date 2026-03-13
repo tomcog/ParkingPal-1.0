@@ -30,8 +30,6 @@ export function scheduleTimerNotification(endTime: number) {
     if (Notification.permission === "granted") {
       const n = new Notification("ParkingPal", {
         body: "Time's up! Move your car.",
-        icon: "/pwa-192x192.png",
-        tag: "parking-timer",
       });
       console.log("[notify] notification created", n);
     }
