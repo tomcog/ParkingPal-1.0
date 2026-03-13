@@ -10,18 +10,30 @@ export async function requestNotificationPermission(): Promise<boolean> {
 }
 
 export function scheduleTimerNotification(endTime: number) {
+  console.log("[notify] scheduleTimerNotification called", {
+    endTime,
+    scheduledEndTime,
+    delay: endTime - Date.now(),
+    permission: "Notification" in window ? Notification.permission : "not supported",
+  });
   if (scheduledEndTime === endTime) return;
   cancelTimerNotification();
   const delay = endTime - Date.now();
-  if (delay <= 0) return;
+  if (delay <= 0) {
+    console.log("[notify] delay <= 0, skipping");
+    return;
+  }
   scheduledEndTime = endTime;
+  console.log("[notify] scheduling notification in", delay, "ms");
   timerId = setTimeout(() => {
+    console.log("[notify] timer fired, permission:", Notification.permission);
     if (Notification.permission === "granted") {
-      new Notification("ParkingPal", {
+      const n = new Notification("ParkingPal", {
         body: "Time's up! Move your car.",
         icon: "/pwa-192x192.png",
         tag: "parking-timer",
       });
+      console.log("[notify] notification created", n);
     }
     scheduledEndTime = null;
     timerId = null;
