@@ -363,9 +363,7 @@ export function HomePage() {
         )}
 
         <div className="relative z-10 bg-[#34c759] rounded-[12px] flex flex-col gap-4 p-6 -mt-[10px]">
-          <div className="w-20 h-20 shrink-0 rounded-full bg-[#155DFC] flex items-center justify-center">
-            <img src="/the-p.svg" alt="" className="h-10 w-auto shrink-0" aria-hidden />
-          </div>
+          <img src="/button-park.svg" alt="" className="w-20 h-20 shrink-0" aria-hidden />
           <div className="flex items-center justify-between w-full gap-2">
             <div className="flex gap-1 items-center text-white text-[20px] leading-[30px] tracking-[-0.35px] min-w-0">
               <span className="font-light">Parked</span>
