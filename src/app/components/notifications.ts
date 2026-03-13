@@ -1,4 +1,5 @@
 let timerId: ReturnType<typeof setTimeout> | null = null;
+let scheduledEndTime: number | null = null;
 
 export async function requestNotificationPermission(): Promise<boolean> {
   if (!("Notification" in window)) return false;
@@ -9,9 +10,11 @@ export async function requestNotificationPermission(): Promise<boolean> {
 }
 
 export function scheduleTimerNotification(endTime: number) {
+  if (scheduledEndTime === endTime) return;
   cancelTimerNotification();
   const delay = endTime - Date.now();
   if (delay <= 0) return;
+  scheduledEndTime = endTime;
   timerId = setTimeout(() => {
     if (Notification.permission === "granted") {
       new Notification("ParkingPal", {
@@ -20,6 +23,8 @@ export function scheduleTimerNotification(endTime: number) {
         tag: "parking-timer",
       });
     }
+    scheduledEndTime = null;
+    timerId = null;
   }, delay);
 }
 
@@ -28,4 +33,5 @@ export function cancelTimerNotification() {
     clearTimeout(timerId);
     timerId = null;
   }
+  scheduledEndTime = null;
 }
