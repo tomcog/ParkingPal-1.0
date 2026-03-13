@@ -13,6 +13,7 @@ import {
   type ParkedLocation,
   type ParkingTimer as ParkingTimerType,
 } from "./parking-storage";
+import { requestNotificationPermission, scheduleTimerNotification, cancelTimerNotification } from "./notifications";
 import { getLocation, setDevMode } from "./dev-mode";
 import { ButtonStandard } from "./button-standard";
 import { SlideButton } from "./slide-button";
@@ -118,8 +119,12 @@ export function HomePage() {
     if (parked?.timer) {
       const remaining = getTimeRemaining(parked.timer.endTime);
       setAlertBg(remaining.expired);
+      if (!remaining.expired) {
+        scheduleTimerNotification(parked.timer.endTime);
+      }
     } else {
       setAlertBg(false);
+      cancelTimerNotification();
     }
   }, [parked, setAlertBg]);
 
@@ -173,6 +178,7 @@ export function HomePage() {
           endTime: Date.now() + mins * 60000,
         };
         saveParkedLocationAndSync({ ...parked, timer });
+        requestNotificationPermission().then(() => scheduleTimerNotification(timer.endTime));
         if (hadTimer) {
           setParked({ ...parked, timer });
         } else {
@@ -187,6 +193,7 @@ export function HomePage() {
             endTime: target.getTime(),
           };
           saveParkedLocationAndSync({ ...parked, timer });
+          requestNotificationPermission().then(() => scheduleTimerNotification(timer.endTime));
           if (hadTimer) {
             setParked({ ...parked, timer });
           } else {
@@ -200,6 +207,7 @@ export function HomePage() {
 
   const handleRemoveTimer = useCallback(() => {
     if (!parked) return;
+    cancelTimerNotification();
     const updated = { ...parked, timer: null };
     saveParkedLocationAndSync(updated);
     setParked(updated);
