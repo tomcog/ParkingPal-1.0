@@ -411,7 +411,7 @@ export function HomePage() {
                     "linear-gradient(rgba(0,0,0,0.1) 15%, rgba(0,0,0,0) 41%), #2a9c47",
                 }}
               >
-                {([120, 60, 30, 15] as const).map((mins) => {
+                {([15, 30, 60, 120] as const).map((mins) => {
                   const label = mins >= 60 ? `${mins / 60}` : `${mins}`;
                   const unit = mins >= 60 ? "h" : "m";
                   const isSelected = meterMinutes === String(mins);
