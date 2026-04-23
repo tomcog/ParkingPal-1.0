@@ -5,7 +5,7 @@ import { useAuth } from "../lib/auth-context";
 import { Card, CardContent } from "./ui/card";
 import { ButtonStandard } from "./button-standard";
 import { IconSignIn } from "./icon-signin";
-import { loadPermits, savePermitsAndSync } from "./permits-storage";
+import { loadPermits, savePermitsAndSync } from "../lib/permits-storage";
 
 const MAX_PERMITS = 3;
 const SKIP_SIGNIN_KEY = "parkingpal_skip_signin";

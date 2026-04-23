@@ -13,11 +13,11 @@ import {
 import { Card, CardContent } from "./ui/card";
 import { CardBlue } from "./card-blue";
 import { ButtonStandard } from "./button-standard";
-import { analyzeParkingSign, getGeminiKey, type ParkingAnalysis } from "./gemini-service";
-import { loadPermits } from "./permits-storage";
-import { compressImage } from "./compress-image";
-import { getLocation } from "./dev-mode";
-import { saveParkedLocationAndSync, type ParkingTimer } from "./parking-storage";
+import { analyzeParkingSign, isAnalyzeConfigured, type ParkingAnalysis } from "../lib/gemini-service";
+import { loadPermits } from "../lib/permits-storage";
+import { compressImage } from "../lib/compress-image";
+import { getLocation } from "../lib/dev-mode";
+import { saveParkedLocationAndSync, type ParkingTimer } from "../lib/parking-storage";
 
 type ScanState = { capturedImage?: string; mimeType?: string } | null;
 
@@ -338,12 +338,14 @@ export function ScanPage() {
   );
 
   useEffect(() => {
-    if (!capturedImage || !getGeminiKey()) return;
+    if (!capturedImage || !isAnalyzeConfigured()) return;
+    const controller = new AbortController();
     setAnalyzing(true);
     setResult(null);
     const userPermits = loadPermits();
-    analyzeParkingSign(capturedImage, userPermits)
+    analyzeParkingSign(capturedImage, userPermits, controller.signal)
       .then((res) => {
+        if (controller.signal.aborted) return;
         if (res.ok) {
           if ("data" in res) setResult({ data: res.data });
           else setResult({ text: res.text });
@@ -351,10 +353,13 @@ export function ScanPage() {
           setResult({ error: res.error });
         }
       })
-      .finally(() => setAnalyzing(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setAnalyzing(false);
+      });
+    return () => controller.abort();
   }, [capturedImage]);
 
-  const noKey = !!capturedImage && !getGeminiKey();
+  const noKey = !!capturedImage && !isAnalyzeConfigured();
 
   if (!capturedImage) {
     return (
@@ -414,8 +419,10 @@ export function ScanPage() {
         <Card className="rounded-xl border-amber-200 bg-amber-50">
           <CardContent className="p-4">
             <p className="text-amber-800 text-sm">
-              Add <code className="bg-amber-100 px-1 rounded">VITE_GEMINI_API_KEY</code> to your{" "}
-              <code className="bg-amber-100 px-1 rounded">.env</code> to analyze parking signs.
+              Sign analysis is not configured. Set{" "}
+              <code className="bg-amber-100 px-1 rounded">VITE_SUPABASE_URL</code> and{" "}
+              <code className="bg-amber-100 px-1 rounded">VITE_SUPABASE_ANON_KEY</code>, then deploy
+              the <code className="bg-amber-100 px-1 rounded">analyze-sign</code> edge function.
             </p>
           </CardContent>
         </Card>

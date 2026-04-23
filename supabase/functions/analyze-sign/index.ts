@@ -1,26 +1,69 @@
-/**
- * Gemini integration for parking sign image analysis.
- *
- * For better results and more options, see:
- * - Prompting: https://ai.google.dev/gemini-api/docs/prompting-strategies
- * - Text generation (temperature, tokens): https://ai.google.dev/gemini-api/docs/text-generation
- * - Vision / images: https://ai.google.dev/gemini-api/docs/vision
- * - Structured output (JSON): https://ai.google.dev/gemini-api/docs/structured-output
- * - Safety: https://ai.google.dev/gemini-api/docs/safety-settings
- */
-const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY ?? null;
+// Supabase Edge Function: analyze-sign
+// Proxies parking-sign image analysis to the Gemini API using a server-side
+// GEMINI_API_KEY secret. Deploy with `supabase functions deploy analyze-sign`
+// and set the key with `supabase secrets set GEMINI_API_KEY=...`.
 
-// Build prompt with current date/time and optional user permits.
-// See https://ai.google.dev/gemini-api/docs/prompting-strategies
-function getParkingSignPrompt(permits: string[]): string {
-  const now = new Date();
-  const dayOfWeek = now.toLocaleDateString("en-US", { weekday: "long" });
-  const date = now.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  const time12h = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-  const hours24 = now.getHours();
-  const mins = now.getMinutes();
-  const time24h = `${String(hours24).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
-  const time = `${time12h} (${time24h})`;
+// @ts-expect-error Deno runtime import
+declare const Deno: { env: { get(key: string): string | undefined }; serve: (h: (r: Request) => Response | Promise<Response>) => void };
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+type RequestBody = {
+  imageBase64?: string;
+  mimeType?: string;
+  permits?: string[];
+  timestamp?: number;
+  timeZone?: string;
+};
+
+type ParkingAnalysis = {
+  canPark: "yes" | "no" | "conditional";
+  summary: string;
+  details: string[];
+  restrictions: string[];
+  timeInfo: string;
+  confidence: "high" | "medium" | "low";
+  parkUntil: string | null;
+  parkAfter: string | null;
+  parkAfterLabel: string | null;
+  nextRestriction: { time: string; label: string; day?: string | null } | null;
+  permitRequired?: boolean;
+  userHasPermit?: boolean | null;
+  permitNote?: string | null;
+};
+
+function formatDateParts(timestamp: number, timeZone: string) {
+  const date = new Date(timestamp);
+  const dayOfWeek = new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone }).format(date);
+  const dateStr = new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone,
+  }).format(date);
+  const time12h = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone,
+  }).format(date);
+  const hour = parseInt(
+    new Intl.DateTimeFormat("en-US", { hour: "2-digit", hour12: false, timeZone }).format(date),
+    10
+  );
+  const minute = parseInt(
+    new Intl.DateTimeFormat("en-US", { minute: "2-digit", timeZone }).format(date),
+    10
+  );
+  const time24h = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  return { dayOfWeek, date: dateStr, time12h, time24h };
+}
+
+function buildPrompt(permits: string[], dt: ReturnType<typeof formatDateParts>): string {
   const permitSection =
     permits.length > 0
       ? `
@@ -40,12 +83,12 @@ Other permit exemptions (non–street-sweeping):
       : "";
   return `You are a parking sign analysis assistant. Analyze the parking sign(s) in this image and determine whether someone can park here RIGHT NOW.
 
-Current date and time: ${dayOfWeek}, ${date} at ${time}
+Current date and time: ${dt.dayOfWeek}, ${dt.date} at ${dt.time12h} (${dt.time24h})
 
-CRITICAL — Use 24-hour time for all comparisons. Current 24-hour time: ${time24h}.
+CRITICAL — Use 24-hour time for all comparisons. Current 24-hour time: ${dt.time24h}.
 • 11:21 PM = 23:21 (evening). 11:21 AM = 11:21 (morning). They are different: do NOT treat 23:21 as inside a 10:00–12:00 window.
 • A sign window "10AM–12PM" or "10 AM to 12 noon" means 10:00–12:00 in 24-hour. The restriction is in effect ONLY when the current 24-hour time is >= 10:00 AND < 12:00. So 11:21 is inside (cannot park); 23:21 is outside (can park if permitted).
-• Before setting canPark to "no" for street sweeping, check: is ${time24h} between the window start and end? If ${time24h} is 23:21 and the window is 10:00–12:00, the answer is no—set canPark to "yes" if the user has a matching permit.${permitSection}
+• Before setting canPark to "no" for street sweeping, check: is ${dt.time24h} between the window start and end? If ${dt.time24h} is 23:21 and the window is 10:00–12:00, the answer is no—set canPark to "yes" if the user has a matching permit.${permitSection}
 
 Please respond in the following JSON format ONLY (no markdown, no code fences, just raw JSON):
 {
@@ -72,7 +115,7 @@ IMPORTANT — "nextRestriction" rules (orange warning for when the user must mov
 • Populate "nextRestriction" when "canPark" is "yes" AND there is a known upcoming restriction that will next affect this user (street cleaning, no-parking window, meter limit, tow-away zone, etc.). Include the next occurrence even if it is hours or days away—e.g. if it is Friday 11:15 PM and street sweeping is 10AM–12PM Fridays, set nextRestriction so the user is warned they can park until Friday at 10:00 AM.
 • "time": 24-hour HH:MM when the restriction starts (e.g. "10:00").
 • "label": short description (e.g. "Street sweeping", "No parking zone starts").
-• "day": the day when the restriction applies—e.g. "Friday", "next Friday", "Saturday"; use null only when the restriction is later today (same day as current ${dayOfWeek}).
+• "day": the day when the restriction applies—e.g. "Friday", "next Friday", "Saturday"; use null only when the restriction is later today (same day as current ${dt.dayOfWeek}).
 • This gives the user a clear orange warning: "You can park here until [day] at [time]" before the restriction begins. If there is no such upcoming restriction, set "nextRestriction" to null.
 
 IMPORTANT — "parkUntil" rules:
@@ -99,168 +142,139 @@ PERMIT rules (when user provided permits above):
 • For other no-parking rules (not street sweeping), when the sign exempts the user's permit, set canPark to "yes" and userHasPermit to true.`;
 }
 
-export function getGeminiKey(): string | null {
-  const key = GEMINI_KEY?.trim();
-  return key ? key : null;
-}
-
-/**
- * Extract raw base64 from a data URL (e.g. from canvas or file read).
- */
-function dataUrlToBase64(dataUrl: string): { base64: string; mimeType: string } {
-  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-  if (!match) throw new Error("Invalid data URL");
-  return { mimeType: match[1].trim(), base64: match[2].trim() };
-}
-
-/** Parsed parking analysis from Gemini (matches the prompt's JSON schema). */
-export interface ParkingAnalysis {
-  canPark: "yes" | "no" | "conditional";
-  summary: string;
-  details: string[];
-  restrictions: string[];
-  timeInfo: string;
-  confidence: "high" | "medium" | "low";
-  parkUntil: string | null;
-  parkAfter: string | null;
-  parkAfterLabel: string | null;
-  nextRestriction: { time: string; label: string; day?: string | null } | null;
-  permitRequired?: boolean;
-  userHasPermit?: boolean | null;
-  permitNote?: string | null;
-}
-
-export type AnalyzeParkingSignResult =
-  | { ok: true; data: ParkingAnalysis }
-  | { ok: true; text: string }
-  | { ok: false; error: string };
-
-/** Extract JSON from model response (may be wrapped in markdown code fences). */
 function parseParkingAnalysis(raw: string): ParkingAnalysis | null {
   let json = raw.trim();
-  const codeBlock = /^```(?:json)?\s*([\s\S]*?)```$/;
-  const match = json.match(codeBlock);
-  if (match) json = match[1].trim();
+  const fence = json.match(/^```(?:json)?\s*([\s\S]*?)```$/);
+  if (fence) json = fence[1].trim();
   try {
-    const parsed = JSON.parse(json) as unknown;
-    if (parsed && typeof parsed === "object" && "canPark" in parsed && "summary" in parsed) {
-      const p = parsed as Record<string, unknown>;
-      return {
-        canPark: p.canPark as ParkingAnalysis["canPark"],
-        summary: String(p.summary ?? ""),
-        details: Array.isArray(p.details) ? p.details.map(String) : [],
-        restrictions: Array.isArray(p.restrictions) ? p.restrictions.map(String) : [],
-        timeInfo: String(p.timeInfo ?? ""),
-        confidence: (p.confidence as ParkingAnalysis["confidence"]) ?? "medium",
-        parkUntil: p.parkUntil != null ? String(p.parkUntil) : null,
-        parkAfter: p.parkAfter != null ? String(p.parkAfter) : null,
-        parkAfterLabel: p.parkAfterLabel != null ? String(p.parkAfterLabel) : null,
-        nextRestriction:
-          p.nextRestriction != null &&
-          typeof p.nextRestriction === "object" &&
-          "time" in p.nextRestriction &&
-          "label" in p.nextRestriction
-            ? {
-                time: String((p.nextRestriction as Record<string, unknown>).time),
-                label: String((p.nextRestriction as Record<string, unknown>).label),
-                day: typeof (p.nextRestriction as Record<string, unknown>).day === "string" ? (p.nextRestriction as Record<string, unknown>).day as string : undefined,
-              }
-            : null,
-        permitRequired: typeof p.permitRequired === "boolean" ? p.permitRequired : undefined,
-        userHasPermit: p.userHasPermit === true || p.userHasPermit === false ? p.userHasPermit : null,
-        permitNote: p.permitNote != null ? String(p.permitNote) : null,
-      };
+    const parsed = JSON.parse(json) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object" || !("canPark" in parsed) || !("summary" in parsed)) {
+      return null;
     }
+    const nr = parsed.nextRestriction as Record<string, unknown> | null | undefined;
+    return {
+      canPark: parsed.canPark as ParkingAnalysis["canPark"],
+      summary: String(parsed.summary ?? ""),
+      details: Array.isArray(parsed.details) ? parsed.details.map(String) : [],
+      restrictions: Array.isArray(parsed.restrictions) ? parsed.restrictions.map(String) : [],
+      timeInfo: String(parsed.timeInfo ?? ""),
+      confidence: (parsed.confidence as ParkingAnalysis["confidence"]) ?? "medium",
+      parkUntil: parsed.parkUntil != null ? String(parsed.parkUntil) : null,
+      parkAfter: parsed.parkAfter != null ? String(parsed.parkAfter) : null,
+      parkAfterLabel: parsed.parkAfterLabel != null ? String(parsed.parkAfterLabel) : null,
+      nextRestriction:
+        nr && typeof nr === "object" && "time" in nr && "label" in nr
+          ? {
+              time: String(nr.time),
+              label: String(nr.label),
+              day: typeof nr.day === "string" ? (nr.day as string) : undefined,
+            }
+          : null,
+      permitRequired: typeof parsed.permitRequired === "boolean" ? parsed.permitRequired : undefined,
+      userHasPermit:
+        parsed.userHasPermit === true || parsed.userHasPermit === false
+          ? (parsed.userHasPermit as boolean)
+          : null,
+      permitNote: parsed.permitNote != null ? String(parsed.permitNote) : null,
+    };
   } catch {
-    // ignore
+    return null;
   }
-  return null;
 }
 
-/**
- * Send the parking sign image to Gemini and return the extracted rules text.
- */
-export async function analyzeParkingSign(
-  imageDataUrl: string,
-  userPermits: string[] = []
-): Promise<AnalyzeParkingSignResult> {
-  const key = getGeminiKey();
-  if (!key) {
-    return { ok: false, error: "Gemini API key not configured." };
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+  if (req.method !== "POST") {
+    return json({ ok: false, error: "Method not allowed" }, 405);
   }
 
-  let base64: string;
-  let mimeType: string;
+  const geminiKey = Deno.env.get("GEMINI_API_KEY");
+  if (!geminiKey) {
+    return json({ ok: false, error: "Server is missing GEMINI_API_KEY." }, 500);
+  }
+
+  let body: RequestBody;
   try {
-    const parsed = dataUrlToBase64(imageDataUrl);
-    base64 = parsed.base64;
-    mimeType = parsed.mimeType;
+    body = await req.json();
   } catch {
-    return { ok: false, error: "Invalid image data." };
+    return json({ ok: false, error: "Invalid JSON body." }, 400);
   }
 
-  const permits = userPermits.map((p) => p.trim()).filter(Boolean);
+  const { imageBase64, mimeType, permits, timestamp, timeZone } = body;
+  if (!imageBase64 || !mimeType) {
+    return json({ ok: false, error: "Missing imageBase64 or mimeType." }, 400);
+  }
+  if (imageBase64.length > 8_000_000) {
+    return json({ ok: false, error: "Image too large." }, 413);
+  }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(key)}`;
-  const body = {
+  const ts = typeof timestamp === "number" ? timestamp : Date.now();
+  const tz = typeof timeZone === "string" && timeZone ? timeZone : "UTC";
+  const cleanPermits = Array.isArray(permits)
+    ? permits.map((p) => String(p).trim()).filter(Boolean).slice(0, 10)
+    : [];
+
+  const dt = formatDateParts(ts, tz);
+  const prompt = buildPrompt(cleanPermits, dt);
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(geminiKey)}`;
+  const geminiBody = {
     contents: [
       {
         parts: [
-          {
-            inline_data: {
-              mime_type: mimeType,
-              data: base64,
-            },
-          },
-          { text: getParkingSignPrompt(permits) },
+          { inline_data: { mime_type: mimeType, data: imageBase64 } },
+          { text: prompt },
         ],
       },
     ],
-    // Generation config for factual, consistent extraction (see Gemini text-generation docs)
-    generationConfig: {
-      temperature: 0.2,
-      maxOutputTokens: 1024,
-      topP: 0.95,
-      topK: 40,
-    },
+    generationConfig: { temperature: 0.2, maxOutputTokens: 1024, topP: 0.95, topK: 40 },
   };
 
+  let res: Response;
   try {
-    const res = await fetch(url, {
+    res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(geminiBody),
     });
-    const data = await res.json();
-
-    if (!res.ok) {
-      const message =
-        data?.error?.message || data?.message || `HTTP ${res.status}`;
-      return { ok: false, error: message };
-    }
-
-    const candidate = data?.candidates?.[0];
-    const finishReason = candidate?.finishReason;
-    if (finishReason && finishReason !== "STOP") {
-      const reasonMessages: Record<string, string> = {
-        SAFETY: "Response was blocked by safety filters.",
-        RECITATION: "Response was blocked (recitation).",
-        MAX_TOKENS: "Response was cut off (max tokens).",
-      };
-      return {
-        ok: false,
-        error: reasonMessages[finishReason] ?? `Model stopped: ${finishReason}`,
-      };
-    }
-    const text = candidate?.content?.parts?.[0]?.text?.trim() ?? "";
-    if (!text) {
-      return { ok: false, error: "No response from model." };
-    }
-    const parsed = parseParkingAnalysis(text);
-    if (parsed) return { ok: true, data: parsed };
-    return { ok: true, text };
   } catch (e) {
     const message = e instanceof Error ? e.message : "Request failed";
-    return { ok: false, error: message };
+    return json({ ok: false, error: message }, 502);
   }
-}
+
+  const data = await res.json().catch(() => null) as Record<string, unknown> | null;
+  if (!res.ok) {
+    const errBody = data as { error?: { message?: string }; message?: string } | null;
+    const message = errBody?.error?.message || errBody?.message || `HTTP ${res.status}`;
+    return json({ ok: false, error: message }, 502);
+  }
+
+  const candidates = (data?.candidates as Array<Record<string, unknown>> | undefined) ?? [];
+  const candidate = candidates[0];
+  const finishReason = candidate?.finishReason as string | undefined;
+  if (finishReason && finishReason !== "STOP") {
+    const map: Record<string, string> = {
+      SAFETY: "Response was blocked by safety filters.",
+      RECITATION: "Response was blocked (recitation).",
+      MAX_TOKENS: "Response was cut off (max tokens).",
+    };
+    return json({ ok: false, error: map[finishReason] ?? `Model stopped: ${finishReason}` }, 502);
+  }
+  const content = candidate?.content as { parts?: Array<{ text?: string }> } | undefined;
+  const text = content?.parts?.[0]?.text?.trim() ?? "";
+  if (!text) {
+    return json({ ok: false, error: "No response from model." }, 502);
+  }
+  const parsed = parseParkingAnalysis(text);
+  if (parsed) return json({ ok: true, data: parsed });
+  return json({ ok: true, text });
+});

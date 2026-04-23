@@ -22,14 +22,14 @@ app.use(express.json());
 
 // ─── GET /capture ────────────────────────────────────────────────────────────
 // Query params:
-//   url      – full URL to capture (default: http://localhost:5173/)
+//   url      – full URL to capture (default: http://localhost:5178/)
 //   wait     – extra ms to wait after networkidle / selector (default: 2500)
 //   selector – CSS selector to wait for before capturing (optional)
 //              e.g. "input[type=email]" to wait for the signin form
 //   width    – viewport width   (default: 1440)
 //   height   – viewport height  (default: 900)
 app.get('/capture', async (req, res) => {
-  const url      = req.query.url      || 'http://localhost:5173/';
+  const url      = req.query.url      || 'http://localhost:5178/';
   const wait     = parseInt(req.query.wait   || '2500', 10);
   const selector = req.query.selector || null;
   const width    = parseInt(req.query.width  || '1440', 10);
@@ -48,7 +48,7 @@ app.get('/capture', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`\n🚀 figma-capture companion ready at http://localhost:${PORT}`);
-  console.log(`   GET /capture?url=http://localhost:5173/signin\n`);
+  console.log(`   GET /capture?url=http://localhost:5178/signin\n`);
 });
 
 // ─── Core capture function ────────────────────────────────────────────────────

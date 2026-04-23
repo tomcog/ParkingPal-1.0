@@ -1,10 +1,6 @@
 import { createBrowserRouter } from "react-router";
 import { Layout } from "./components/layout";
 import { HomePage } from "./components/home-page";
-import { ScanPage } from "./components/scan-page";
-import { HistoryPage } from "./components/history-page";
-import { SettingsPage } from "./components/settings-page";
-import { ColorsPage } from "./components/colors-page";
 
 export const router = createBrowserRouter([
   {
@@ -12,10 +8,27 @@ export const router = createBrowserRouter([
     Component: Layout,
     children: [
       { index: true, Component: HomePage },
-      { path: "scan", Component: ScanPage },
-      { path: "history", Component: HistoryPage },
-      { path: "settings", Component: SettingsPage },
-      { path: "colors", Component: ColorsPage },
+      {
+        path: "scan",
+        lazy: async () => {
+          const { ScanPage } = await import("./components/scan-page");
+          return { Component: ScanPage };
+        },
+      },
+      {
+        path: "history",
+        lazy: async () => {
+          const { HistoryPage } = await import("./components/history-page");
+          return { Component: HistoryPage };
+        },
+      },
+      {
+        path: "settings",
+        lazy: async () => {
+          const { SettingsPage } = await import("./components/settings-page");
+          return { Component: SettingsPage };
+        },
+      },
     ],
   },
 ]);

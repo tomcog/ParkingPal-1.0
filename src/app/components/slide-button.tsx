@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
-import { playClick } from "./sounds";
+import { playClick } from "../lib/sounds";
 
 interface SlideButtonProps {
   onSlideComplete: () => void;
@@ -95,9 +95,9 @@ export function SlideButton({
       }
     };
 
-    target.addEventListener("pointermove", onMove);
-    target.addEventListener("pointerup", onEnd);
-    target.addEventListener("pointercancel", onEnd);
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onEnd);
+    document.addEventListener("pointercancel", onEnd);
   };
 
   return (

@@ -1,5 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, type ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { MapPin, Camera, Loader2, Timer, X } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
@@ -12,15 +11,15 @@ import {
   getTimeRemaining,
   type ParkedLocation,
   type ParkingTimer as ParkingTimerType,
-} from "./parking-storage";
-import { requestNotificationPermission, scheduleTimerNotification, cancelTimerNotification } from "./notifications";
-import { getLocation, setDevMode } from "./dev-mode";
+} from "../lib/parking-storage";
+import { requestNotificationPermission, scheduleTimerNotification, cancelTimerNotification } from "../lib/notifications";
+import { getLocation, setDevMode } from "../lib/dev-mode";
 import { ButtonStandard } from "./button-standard";
 import { SlideButton } from "./slide-button";
-import { playCelebration } from "./sounds";
+import { playCelebration } from "../lib/sounds";
 import { useAlertBg } from "./alert-bg-context";
-import { getGoogleMapsKey, getStaticMapUrl } from "./google-maps-service";
-import { compressImage } from "./compress-image";
+import { getGoogleMapsKey, getStaticMapUrl } from "../lib/google-maps-service";
+import { compressImage } from "../lib/compress-image";
 import slidingArrowIcon from "../../icon-slidingarrow.svg";
 
 function IconPark({ className }: { className?: string }) {
@@ -36,6 +35,34 @@ function IconNoPark({ className }: { className?: string }) {
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className={className} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M10.547 5.83342H10.8337C11.1835 5.83345 11.5295 5.90692 11.8492 6.04906C12.1689 6.19121 12.4552 6.39887 12.6895 6.65863C12.9239 6.91838 13.1012 7.22443 13.2098 7.557C13.3185 7.88956 13.3561 8.24123 13.3203 8.58926M10.8337 10.8334H7.50033M15.8928 15.8926C14.3301 17.4553 12.2107 18.3332 10.0007 18.3332C7.79078 18.3332 5.67134 17.4553 4.10866 15.8926C2.54598 14.3299 1.66808 12.2105 1.66808 10.0005C1.66808 7.79055 2.54598 5.6711 4.10866 4.10842M1.66699 1.66676L18.3337 18.3334M6.96449 2.23926C8.47325 1.64901 10.1213 1.51134 11.7071 1.84311C13.2929 2.17488 14.7475 2.9617 15.8931 4.10728C17.0387 5.25287 17.8255 6.70754 18.1573 8.29331C18.4891 9.87908 18.3514 11.5272 17.7612 13.0359M7.50033 14.1668V7.50009" />
     </svg>
+  );
+}
+
+function CollapseHeight({
+  targetHeight,
+  onCollapsed,
+  className,
+  children,
+}: {
+  targetHeight: number;
+  onCollapsed?: () => void;
+  className?: string;
+  children: ReactNode;
+}) {
+  const [height, setHeight] = useState(0);
+  useEffect(() => {
+    setHeight(targetHeight);
+  }, [targetHeight]);
+  return (
+    <div
+      className={`overflow-hidden transition-[height] duration-[400ms] ease-in-out ${className ?? ""}`}
+      style={{ height: `${height}px` }}
+      onTransitionEnd={(e) => {
+        if (e.propertyName === "height" && targetHeight === 0) onCollapsed?.();
+      }}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -55,6 +82,7 @@ export function HomePage() {
   const customInputRef = useRef<HTMLInputElement>(null);
   const drawerContentRef = useRef<HTMLDivElement>(null);
   const [drawerHeight, setDrawerHeight] = useState(0);
+  const [drawerMounted, setDrawerMounted] = useState(false);
   const [timerBarExiting, setTimerBarExiting] = useState(false);
   const [staticMapUrl, setStaticMapUrl] = useState<string | null>(null);
   const scanFileInputRef = useRef<HTMLInputElement>(null);
@@ -105,15 +133,19 @@ export function HomePage() {
   }, [parked?.lat, parked?.lng]);
 
   useEffect(() => {
-    if (!parked) return;
+    if (!parked?.timer) return;
     const id = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(id);
-  }, [parked]);
+  }, [parked?.timer]);
+
+  useEffect(() => {
+    if (showTimerDrawer) setDrawerMounted(true);
+  }, [showTimerDrawer]);
 
   useLayoutEffect(() => {
-    if (!showTimerDrawer || !drawerContentRef.current) return;
+    if (!drawerMounted || !drawerContentRef.current) return;
     setDrawerHeight(drawerContentRef.current.scrollHeight);
-  }, [showTimerDrawer]);
+  }, [drawerMounted]);
 
   useEffect(() => {
     if (parked?.timer) {
@@ -305,12 +337,9 @@ export function HomePage() {
     <div className="p-6 max-w-lg mx-auto space-y-6">
       <div className="relative">
         {((hasTimer && timerRemaining) || timerBarExiting) && (
-          <motion.div
-            initial={{ height: 0 }}
-            animate={{ height: timerBarExiting ? 0 : 56 }}
-            transition={{ duration: 0.4, ease: "easeInOut" }}
-            className="overflow-hidden"
-            onAnimationComplete={() => {
+          <CollapseHeight
+            targetHeight={timerBarExiting ? 0 : 56}
+            onCollapsed={() => {
               if (timerBarExiting) {
                 handleRemoveTimer();
                 setTimerBarExiting(false);
@@ -367,7 +396,7 @@ export function HomePage() {
                 </button>
               </div>
             </div>
-          </motion.div>
+          </CollapseHeight>
         )}
 
         <div className="relative z-10 bg-[#34c759] rounded-[12px] flex flex-col gap-4 p-6 -mt-[10px]">
@@ -400,17 +429,16 @@ export function HomePage() {
           </div>
         </div>
 
-        <AnimatePresence>
-          {showTimerDrawer && (
-            <motion.div
-              initial={{ height: 0 }}
-              animate={{ height: drawerHeight }}
-              exit={{ height: 0 }}
-              transition={{ duration: 0.4, ease: "easeInOut" }}
-              className="overflow-hidden relative z-0 -mt-[14px]"
-            >
-              <div
-                ref={drawerContentRef}
+        {drawerMounted && (
+          <CollapseHeight
+            targetHeight={showTimerDrawer ? drawerHeight : 0}
+            onCollapsed={() => {
+              if (!showTimerDrawer) setDrawerMounted(false);
+            }}
+            className="relative z-0 -mt-[14px]"
+          >
+            <div
+              ref={drawerContentRef}
                 className="rounded-b-xl pt-[34px] px-4 pb-4 grid grid-cols-12 gap-x-4 gap-y-8"
                 style={{
                   background:
@@ -528,10 +556,9 @@ export function HomePage() {
                     </span>
                   </button>
                 )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+          </CollapseHeight>
+        )}
       </div>
 
       <SlideButton

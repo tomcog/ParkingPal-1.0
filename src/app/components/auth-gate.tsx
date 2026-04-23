@@ -35,7 +35,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const handleUseWithoutSignIn = () => {
     setSkipSignInStorage();
     setSkipSignIn(true);
-    window.location.replace("/");
   };
 
   if (showLoading) {

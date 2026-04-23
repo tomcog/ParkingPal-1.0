@@ -1,7 +1,7 @@
 import { useRef, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft } from "lucide-react";
-import { compressImage } from "./compress-image";
+import { compressImage } from "../lib/compress-image";
 
 export function HistoryPage() {
   const navigate = useNavigate();

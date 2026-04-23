@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { getSupabase } from "./supabase";
 
 const isDev = import.meta.env.DEV;
 
@@ -6,12 +6,13 @@ function logPermitsError(op: "fetch" | "upsert", err: unknown) {
   if (!isDev) return;
   const msg = err instanceof Error ? err.message : String(err);
   console.error(
-    `[ParkingPal] Permits ${op} failed. If permits don't sync across devices, run supabase-schema.sql in Supabase SQL Editor.`,
+    `[ParkingPal] Permits ${op} failed. If permits don't sync across devices, run supabase/schema.sql in Supabase SQL Editor.`,
     msg
   );
 }
 
 export async function fetchPermitsForUser(userId: string): Promise<string[]> {
+  const supabase = await getSupabase();
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("user_permits")
@@ -34,6 +35,7 @@ export async function upsertPermitsForUser(
   userId: string,
   permits: string[]
 ): Promise<void> {
+  const supabase = await getSupabase();
   if (!supabase) return;
   const trimmed = permits
     .map((s) => String(s).trim())

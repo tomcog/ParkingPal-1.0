@@ -6,7 +6,7 @@ import {
   loadParkedLocation,
   getTimeRemaining,
   formatCountdown,
-} from "./parking-storage";
+} from "../lib/parking-storage";
 
 export function ParkingTimerBanner() {
   const navigate = useNavigate();

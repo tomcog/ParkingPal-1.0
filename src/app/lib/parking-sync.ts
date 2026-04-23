@@ -1,5 +1,5 @@
-import { supabase, type ParkingRow } from "./supabase";
-import type { ParkedLocation } from "../components/parking-storage";
+import { getSupabase, type ParkingRow } from "./supabase";
+import type { ParkedLocation } from "./parking-storage";
 
 function rowToLocation(row: ParkingRow): ParkedLocation {
   return {
@@ -11,6 +11,7 @@ function rowToLocation(row: ParkingRow): ParkedLocation {
 }
 
 export async function fetchParkingForUser(userId: string): Promise<ParkedLocation | null> {
+  const supabase = await getSupabase();
   if (!supabase) return null;
   const { data, error } = await supabase
     .from("current_parking")
@@ -25,6 +26,7 @@ export async function upsertParkingForUser(
   userId: string,
   location: ParkedLocation
 ): Promise<void> {
+  const supabase = await getSupabase();
   if (!supabase) return;
   await supabase.from("current_parking").upsert(
     {
@@ -40,6 +42,7 @@ export async function upsertParkingForUser(
 }
 
 export async function deleteParkingForUser(userId: string): Promise<void> {
+  const supabase = await getSupabase();
   if (!supabase) return;
   await supabase.from("current_parking").delete().eq("user_id", userId);
 }

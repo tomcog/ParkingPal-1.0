@@ -1,15 +1,23 @@
-import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { ParkingTimer } from "./parking-storage";
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase =
-  url && anonKey
-    ? createClient(url, anonKey)
-    : (null as ReturnType<typeof createClient> | null);
-
 export function isSupabaseConfigured(): boolean {
   return !!(url && anonKey);
+}
+
+let clientPromise: Promise<SupabaseClient | null> | null = null;
+
+export function getSupabase(): Promise<SupabaseClient | null> {
+  if (!isSupabaseConfigured()) return Promise.resolve(null);
+  if (!clientPromise) {
+    clientPromise = import("@supabase/supabase-js").then(({ createClient }) =>
+      createClient(url!, anonKey!)
+    );
+  }
+  return clientPromise;
 }
 
 export type ParkingRow = {
@@ -17,6 +25,6 @@ export type ParkingRow = {
   lat: number;
   lng: number;
   timestamp: number;
-  timer: { type: string; label: string; endTime: number } | null;
+  timer: ParkingTimer | null;
   updated_at: string;
 };

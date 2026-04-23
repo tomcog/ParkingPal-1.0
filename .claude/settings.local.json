@@ -6,7 +6,17 @@
       "Bash(npm run:*)",
       "Bash(rm:*)",
       "Bash(npm install:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(grep -r \"Notification\\\\|notification\\\\|requestPermission\\\\|pushManager\\\\|showNotification\" /Users/tom/Sites/ClaudeCode/ParkingPal/src --include=\"*.ts\" --include=\"*.tsx\" 2>/dev/null | head -20)",
+      "Bash(find /Users/tom/Sites/ClaudeCode/ParkingPal -name \"*.html\" -type f 2>/dev/null | grep -v node_modules | head -5)",
+      "Bash(find /Users/tom/Sites/ClaudeCode/ParkingPal/src -type f \\\\\\( -name \"*.ts\" -o -name \"*.tsx\" \\\\\\) -exec wc -l {} + | sort -n | tail -20)",
+      "Bash(npx tsc *)",
+      "Bash(npx vite *)",
+      "Bash(supabase --version)",
+      "Bash(supabase projects *)",
+      "Bash(supabase functions *)",
+      "Bash(supabase secrets *)",
+      "Bash(curl *)"
     ]
   }
 }
